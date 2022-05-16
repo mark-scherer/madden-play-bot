@@ -123,7 +123,7 @@ def scrape_madden_year_playbooks(madden_year: int) -> List[Playbook]:
     for playbook in available_playbooks[0:1]:
         if playbook.type != PlaybookType.OFFENSE:
             continue
-        glog.info(f'scraping offensive playbook: {playbook}')
+        # glog.info(f'scraping offensive playbook: {playbook}')
         playbook.plays = _scrape_playbook_plays(playbook)
         scraped_playbooks.append(playbook)
     return scraped_playbooks

@@ -9,7 +9,7 @@ import os
 import glog
 import requests
 
-import huddle_gg_playbook_scraper as huddle_gg
+import playbooks_scraper_huddle_gg as huddle_gg
 from playbook import Playbook
 
 MADDEN_YEARS_TO_SCRAPE = [22]
