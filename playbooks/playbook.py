@@ -1,5 +1,5 @@
 '''
-Playbook dataclasses
+Playbook dataclasses.
 '''
 
 from typing import List, Dict, Any

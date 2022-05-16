@@ -1,5 +1,5 @@
 '''
-Huddle.gg madden playbook scraper
+Functions for scraping entire madden playbook from hustle.gg.
 '''
 
 from typing import List, Dict, NamedTuple
