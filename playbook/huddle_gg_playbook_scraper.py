@@ -79,7 +79,7 @@ def _scrape_playbook_plays(playbook: Playbook) -> List[Play]:
     formations = _scrape_playbook_formations(playbook)
     # glog.info(f'scraped {len(formations)} formations: {formations}')
     plays = []
-    for formation in formations[0:1]:
+    for formation in formations[0:2]:
         # glog.info(f'scraping formation\'s plays: {formation}')
         plays += _scrape_formation_plays(playbook, formation)
     return plays
