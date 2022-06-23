@@ -2,35 +2,203 @@
 Functions for parsing already scraped play images into usable data.
 '''
 
-from typing import List
+from typing import List, Dict, Any, Tuple
+import traceback
+import time
+import math
+import copy
+import json
 
 import glog
-import csv
+import cv2
+from matplotlib import pyplot as plt
+import numpy as np
+import skimage
+from skimage.morphology import skeletonize
 
-from constants import PLAYBOOK_CSV_PATH
-from playbook import Playbook, Play
+import constants
+from playbook import Playbook, Play, Route, RouteType, Point
 
-def _parse_play_image(play: Play) -> Play:
-    '''Parse play image into usable data and return as new Play object'''
-    parsed = None
-    try:
-        raise NotImplementedError()
-    except Exception as e:
-        glog.warning(f'error parsing play: {play.summary()}: {e}')
+# For vizualizing skeltons in debug images.
+SKELETON_COLORS = [
+    [255,0,0],
+    [0,255,0],
+    [0,0,255],
+    [255,255,0],
+    [255,0,255],
+    [0,255,255],
+    [255,255,255],
+]
+
+MASK_THRESHOLDS = {
+    RouteType.REGULAR_ROUTE: {
+        'min': [190, 170, 75],
+        'max': [200, 180, 85]
+    },
+    RouteType.PRIMARY_ROUTE: {
+        'min': [215, 60, 80],
+        'max': [225, 70, 90]
+    },
+    RouteType.DELAYED_ROUTE: {
+        'min': [0, 0, 240],
+        'max': [60, 120, 255]
+    },
+}
+
+# mask closing params
+CLOSING_SIZE = 25
+CLOSING_KERNERL = np.ones((CLOSING_SIZE, CLOSING_SIZE), np.uint8)
+
+def elapsed_ms(start_time: float) -> int:
+    '''Return ms elapsed since passed start time (use time.time()).'''
+    return round((time.time() - start_time)*1000)
+
+
+def display_images(images: List[Dict[str, Any]]) -> None:
+    '''Display debug images in a popup.'''
+    plot_cols = None
+    plot_rows = None
+    if len(images) <= 3:
+        plot_rows = 1
+    elif len(images) <= 8:
+        plot_rows = 2
+    else:
+        plot_rows = 3
+    plot_cols = math.ceil(len(images)/plot_rows)
+    for i, display_img_info in enumerate(images):
+        plt.subplot(plot_rows, plot_cols, i + 1)
+        plt.imshow(display_img_info['img'], cmap='gray')
+        plt.title(display_img_info['title'])
+        plt.xticks([]), plt.yticks([])
+
+    plt.show()
+
+def _img_threshold_by_range(img: np.array, min: List, max: List) -> np.array:
+    '''Given input image and list of mins and max pixel values, return thresholded image.
     
-    return parsed
+    Args:
+        img: input cv2.Mat
+        min: list of min pixel values for all img channes
+        max: list of max pixel values for all img channes
+
+    Returns: thresholded binary cv2.Mat
+
+    Note: try just using cv2.inRange() as done in the answer code here: https://stackoverflow.com/a/52048325/17591909
+    '''
+
+    min = min.copy()
+    max = max.copy()
+
+    channel_count = 1 if len(img.shape) == 2 else img.shape[2]
+    assert len(min) == len(max) and len(min) == channel_count, \
+        f'mismatched channel counts: min = {len(min)}, max = {len(max)}, img = {channel_count}'
+    
+    # min, max are RGB but cv2 stores images as BGR
+    min.reverse()
+    max.reverse()
+
+    img_sample_val = img[0][0] if channel_count == 1 else img[0][0][0]
+    mask_type = type(img_sample_val)
+    mask_shape = (img.shape[0], img.shape[1])
+    result = np.full(mask_shape, True)
+    for i in range(channel_count):
+        img_mask = img if channel_count == 1 else img[:,:,i]
+        min_mask = np.full(mask_shape, min[i], mask_type)
+        max_mask = np.full(mask_shape, max[i], mask_type)
+        mask_result = cv2.inRange(img_mask, min_mask, max_mask)
+        result = np.logical_and(result, mask_result)
+
+    return np.uint8(result)*255
+
+def _parse_play_image(
+    play: Play,
+    debug: bool = False,
+    verbose: bool = False,
+    ) -> Play:
+    '''Parse scraped play image into usable data and return as new Play object.'''
+    if verbose:
+        glog.info(f'parsing play: {play.title()}...')
+    parse_start = time.time()
+    parsed_play = copy.copy(play)
+    try:
+        img = cv2.imread(play.image_local_path)
+        display = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) 
+        # grayscale = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+        debug_images = [
+            {'title': play.title(), 'img': display},
+        ]
+
+        skeletons_image = np.zeros(img.shape, np.uint8)
+        parsed_routes = []
+        for feature_type, mask_thresholds in MASK_THRESHOLDS.items():
+            mask = _img_threshold_by_range(img, min=mask_thresholds['min'], max=mask_thresholds['max'])
+            closed_mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, CLOSING_KERNERL)
+
+            # debug_images += [
+            #     {'title': f'{feature_type}: mask', 'img': mask.copy()},
+            #     {'title': f'{feature_type}: closed_mask', 'img': closed_mask.copy()},
+            # ]
+
+            # separate each route via contours
+            contours, _ = cv2.findContours(closed_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)            
+            for i, contour in enumerate(contours):
+                contour_image = np.zeros(img.shape[:2], np.uint8)
+                contour_image = cv2.drawContours(contour_image, contours, i, (255,255,255), -1)
+                skeletonized = skeletonize(skimage.img_as_float(contour_image)).astype('uint8') * 255
+                skeleton_color = SKELETON_COLORS[len(parsed_routes)]
+                
+                route_points = np.argwhere(skeletonized == 255)
+                route = Route(
+                    type=feature_type,
+                    points=[Point(int(pt[0]), int(pt[1])) for pt in route_points]
+                )
+                parsed_routes.append(route)
+
+                colorized_skeleton = cv2.cvtColor(skeletonized,cv2.COLOR_GRAY2RGB)
+                colorized_skeleton[:,:,0] = np.multiply(colorized_skeleton[:,:,0], skeleton_color[0]/255)
+                colorized_skeleton[:,:,1] = np.multiply(colorized_skeleton[:,:,1], skeleton_color[1]/255)
+                colorized_skeleton[:,:,2] = np.multiply(colorized_skeleton[:,:,2], skeleton_color[2]/255)
+                skeletons_image += colorized_skeleton
+
+                # debug_images += [
+                    # {'title': f'{feature_type}: contour {i}', 'img': contour_image.copy()},
+                    # {'title': f'{feature_type}: skeleton {i}', 'img': skeletonized.copy()},
+                    # {'title': f'{feature_type}: colorized skeleton {i}', 'img': colorized_skeleton.copy()},
+                # ]
+        
+        debug_images += [
+            {'title': 'skeletons', 'img': skeletons_image.copy()},
+        ]
+
+        # parsed_play.type = # need to determine play type
+        parsed_play.routes = parsed_routes
+
+        if verbose:
+            glog.info(f'..finished parsing {play.title()} in {elapsed_ms(parse_start)}ms: {json.dumps(parsed_play.summary())}')
+        if debug:
+            display_images(debug_images)
+    except Exception as e:
+        glog.warning(f'error parsing play: {play.summary()}:\n{traceback.format_exc()}\n{e}\n')
+    
+    return parsed_play
 
 def parse():
     '''For now access scraped plays via csv and locally downloaded play images'''
-    playbooks = Playbook.playbooks_from_csv(filepath=PLAYBOOK_CSV_PATH)
-    all_plays = []
-    for playbook in playbooks:
-        all_plays += playbook.plays
-    
-    parsed_plays = []
-    for play in all_plays:
-        pp = _parse_play_image(play)
-        if pp:
-            parsed_plays.append(pp)
+    # scraped_playbooks = Playbook.playbooks_from_csv(filepath=constants.PLAYBOOK_CSV_PATH)
+    scraped_playbooks = Playbook.read_playbooks_from_json(filepath=constants.SCRAPED_PLAYBOOK_PATH)
+    parsed_playbooks = []
+    for playbook in scraped_playbooks:
+        parse_start = time.time()
+        parsed_plays = []
+        for scraped_play in playbook.plays:
+            pp = _parse_play_image(scraped_play)
+            if pp:
+                parsed_plays.append(pp)
+        parsed_pb = copy.copy(playbook)
+        parsed_pb.plays = parsed_plays
+        parsed_playbooks.append(parsed_pb)
+        glog.info(f'successfully parsed {len(parsed_pb.plays)} / {len(playbook.plays)} plays from {parsed_pb.name} in {elapsed_ms(parse_start)}ms')
 
-    glog.info(f'..successfully parsed {len(parsed_plays)} / {len(all_plays)} plays.')
+
+    Playbook.write_playbooks_to_json(filepath=constants.PARSED_PLAYBOOK_PATH, playbooks=parsed_playbooks)

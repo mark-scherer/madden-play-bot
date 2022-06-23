@@ -55,4 +55,4 @@ def scrape():
 
     playbooks = huddle_gg.scrape_playbooks(MADDEN_YEARS_TO_SCRAPE)
     playbooks = _download_play_images(output_dir=constants.PLAYBOOK_IMAGES_DIR, playbooks=playbooks)
-    Playbook.playbooks_to_csv(filepath=constants.PLAYBOOK_CSV_PATH, playbooks=playbooks)
+    Playbook.write_playbooks_to_json(filepath=constants.SCRAPED_PLAYBOOK_PATH, playbooks=playbooks)
