@@ -2,20 +2,21 @@
 Functions for parsing already scraped play images into usable data.
 '''
 
+import sys
 from typing import List, Dict, Any, Tuple
 import traceback
 import time
-import math
 import copy
 import json
+sys.path.append(path.join(path.dirname(__file__), '..', 'utils')) # upwards relative imports are hacky
 
 import glog
 import cv2
-from matplotlib import pyplot as plt
 import numpy as np
 import skimage
 from skimage.morphology import skeletonize
 
+from ..utils import utils
 import constants
 from playbook import Playbook, Play, Route, RouteType, Point
 
@@ -49,67 +50,6 @@ MASK_THRESHOLDS = {
 CLOSING_SIZE = 25
 CLOSING_KERNERL = np.ones((CLOSING_SIZE, CLOSING_SIZE), np.uint8)
 
-def elapsed_ms(start_time: float) -> int:
-    '''Return ms elapsed since passed start time (use time.time()).'''
-    return round((time.time() - start_time)*1000)
-
-
-def display_images(images: List[Dict[str, Any]]) -> None:
-    '''Display debug images in a popup.'''
-    plot_cols = None
-    plot_rows = None
-    if len(images) <= 3:
-        plot_rows = 1
-    elif len(images) <= 8:
-        plot_rows = 2
-    else:
-        plot_rows = 3
-    plot_cols = math.ceil(len(images)/plot_rows)
-    for i, display_img_info in enumerate(images):
-        plt.subplot(plot_rows, plot_cols, i + 1)
-        plt.imshow(display_img_info['img'], cmap='gray')
-        plt.title(display_img_info['title'])
-        plt.xticks([]), plt.yticks([])
-
-    plt.show()
-
-def _img_threshold_by_range(img: np.array, min: List, max: List) -> np.array:
-    '''Given input image and list of mins and max pixel values, return thresholded image.
-    
-    Args:
-        img: input cv2.Mat
-        min: list of min pixel values for all img channes
-        max: list of max pixel values for all img channes
-
-    Returns: thresholded binary cv2.Mat
-
-    Note: try just using cv2.inRange() as done in the answer code here: https://stackoverflow.com/a/52048325/17591909
-    '''
-
-    min = min.copy()
-    max = max.copy()
-
-    channel_count = 1 if len(img.shape) == 2 else img.shape[2]
-    assert len(min) == len(max) and len(min) == channel_count, \
-        f'mismatched channel counts: min = {len(min)}, max = {len(max)}, img = {channel_count}'
-    
-    # min, max are RGB but cv2 stores images as BGR
-    min.reverse()
-    max.reverse()
-
-    img_sample_val = img[0][0] if channel_count == 1 else img[0][0][0]
-    mask_type = type(img_sample_val)
-    mask_shape = (img.shape[0], img.shape[1])
-    result = np.full(mask_shape, True)
-    for i in range(channel_count):
-        img_mask = img if channel_count == 1 else img[:,:,i]
-        min_mask = np.full(mask_shape, min[i], mask_type)
-        max_mask = np.full(mask_shape, max[i], mask_type)
-        mask_result = cv2.inRange(img_mask, min_mask, max_mask)
-        result = np.logical_and(result, mask_result)
-
-    return np.uint8(result)*255
-
 def _parse_play_image(
     play: Play,
     debug: bool = False,
@@ -132,7 +72,7 @@ def _parse_play_image(
         skeletons_image = np.zeros(img.shape, np.uint8)
         parsed_routes = []
         for feature_type, mask_thresholds in MASK_THRESHOLDS.items():
-            mask = _img_threshold_by_range(img, min=mask_thresholds['min'], max=mask_thresholds['max'])
+            mask = utils.img_threshold_by_range(img, min=mask_thresholds['min'], max=mask_thresholds['max'])
             closed_mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, CLOSING_KERNERL)
 
             # debug_images += [
@@ -175,9 +115,9 @@ def _parse_play_image(
         parsed_play.routes = parsed_routes
 
         if verbose:
-            glog.info(f'..finished parsing {play.title()} in {elapsed_ms(parse_start)}ms: {json.dumps(parsed_play.summary())}')
+            glog.info(f'..finished parsing {play.title()} in {utils.elapsed_ms(parse_start)}ms: {json.dumps(parsed_play.summary())}')
         if debug:
-            display_images(debug_images)
+            utils.display_images(debug_images)
     except Exception as e:
         glog.warning(f'error parsing play: {play.summary()}:\n{traceback.format_exc()}\n{e}\n')
     
@@ -198,7 +138,7 @@ def parse():
         parsed_pb = copy.copy(playbook)
         parsed_pb.plays = parsed_plays
         parsed_playbooks.append(parsed_pb)
-        glog.info(f'successfully parsed {len(parsed_pb.plays)} / {len(playbook.plays)} plays from {parsed_pb.name} in {elapsed_ms(parse_start)}ms')
+        glog.info(f'successfully parsed {len(parsed_pb.plays)} / {len(playbook.plays)} plays from {parsed_pb.name} in {utils.elapsed_ms(parse_start)}ms')
 
 
     Playbook.write_playbooks_to_json(filepath=constants.PARSED_PLAYBOOK_PATH, playbooks=parsed_playbooks)
