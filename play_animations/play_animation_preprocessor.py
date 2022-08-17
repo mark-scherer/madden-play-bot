@@ -16,24 +16,13 @@ import utils
 import constants
 from playbook import Point
 
-DEBUG_COLOR = [255, 0, 0]
-
 # Generic contants
-# Fraction of image height to keep when cropping out bottom scoreboard for both warped and unwarped images
-CROPPED_SCOREBOARD_COEF_WARPED = 0.85
-CROPPED_SCOREBOARD_COEF_UNWARPED = 0.85
-GRASS_MASK = {
-    'min': [30, 180, 50],
-    'max': [120, 200, 120]
-}
+# Fraction of image height to keep when cropping out bottom scoreboard for dewarped frame
+CROPPED_SCOREBOARD_COEF = 0.85
 
 # Constants for finding downfield region.
 SIDELINE_EROSION_KERNEL_SIZE = (10, 5)
 SIDELINE_TOP_MOE = 0.1  # Margin of error to add when filtering sideline pixels to just those near the ID 'top of the sideline'
-SIDELINE_MASK = {
-    'min': [250, 250, 250],
-    'max': [255, 255, 255]
-}
 
 # Constants for finding LOS
 LOS_MASK = {
@@ -41,6 +30,11 @@ LOS_MASK = {
     'max': [20, 100, 255]
 }
 LOS_EROSION_KERNEL_SIZE = (1, 5)
+
+# Constants for finding ball
+BALL_TEMPLATE_PATH = 'assets/ball_combined.png'
+# BALL_TEMPLATE_PATH = 'assets/ball_rams_bengals_0.png'
+BALL_MATCHING_METHOD = cv2.TM_SQDIFF_NORMED 
 
 # Constants for finding field scale
 FIELD_WIDTH_YDS = 160/3  # 160' wide
@@ -72,10 +66,10 @@ def _find_downfield_corners(input_frame: np.array) ->  Tuple[List[Point], List[D
     # Crop to just image top right
     # TR not TL b/c sidelines are symmetrical and TL has interference from logo
     sideline_crop_width = int(0.5*width)
-    sideline_crop_height = int(height*CROPPED_SCOREBOARD_COEF_WARPED)
+    sideline_crop_height = int(height*constants.CROPPED_SCOREBOARD_COEF_WARPED)
     sideline_crop = input_frame.copy()[0:sideline_crop_height, sideline_crop_width:width-1]
 
-    sideline_mask = utils.img_threshold_by_range(sideline_crop, min=SIDELINE_MASK['min'], max=SIDELINE_MASK['max'], reverse=False)
+    sideline_mask = utils.img_threshold_by_range(sideline_crop, min=constants.SIDELINE_MASK['min'], max=constants.SIDELINE_MASK['max'], reverse=False)
 
     sideline_erosion_kernel = np.ones(SIDELINE_EROSION_KERNEL_SIZE, np.uint8)
     cleaned_sideline_mask = cv2.morphologyEx(sideline_mask, cv2.MORPH_OPEN, sideline_erosion_kernel)
@@ -167,7 +161,7 @@ def _find_field_extremes(frame: np.array) -> Tuple[Tuple[int, int, int, int], Li
     '''
     debug_images = []
     
-    grass_mask = utils.img_threshold_by_range(img=frame, min=GRASS_MASK['min'], max=GRASS_MASK['max'], reverse=False)
+    grass_mask = utils.img_threshold_by_range(img=frame, min=constants.GRASS_MASK['min'], max=constants.GRASS_MASK['max'], reverse=False)
     debug_images.append({
         'title': 'grass mask',
         'img': grass_mask
@@ -200,7 +194,7 @@ def _find_yscale(frame: np.array) -> Tuple[float, List[np.array]]:
         'img': yscale_crop
     })
 
-    grass_mask = utils.img_threshold_by_range(img=yscale_crop, min=GRASS_MASK['min'], max=GRASS_MASK['max'], reverse=False)
+    grass_mask = utils.img_threshold_by_range(img=yscale_crop, min=constants.GRASS_MASK['min'], max=constants.GRASS_MASK['max'], reverse=False)
     debug_images.append({
         'title': 'grass mask',
         'img': grass_mask
@@ -222,7 +216,7 @@ def _find_yscale(frame: np.array) -> Tuple[float, List[np.array]]:
 
     hash_contours, _ = cv2.findContours(cleaned_hash_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     hash_contours_img = np.zeros(cleaned_hash_mask.shape, np.uint8)
-    hash_contours_img = cv2.drawContours(hash_contours_img, hash_contours, -1, DEBUG_COLOR, 1)
+    hash_contours_img = cv2.drawContours(hash_contours_img, hash_contours, -1, constants.DEBUG_COLOR, 1)
     debug_images.append({
         'title': 'hash contours',
         'img': hash_contours_img
@@ -242,7 +236,7 @@ def _find_los(frame: np.array) ->  Tuple[int, np.array]:
     debug_images = []
     height, width, _ = frame.shape
 
-    los_crop_height = int(height*CROPPED_SCOREBOARD_COEF_UNWARPED)
+    los_crop_height = int(height*CROPPED_SCOREBOARD_COEF)
     los_crop = frame.copy()[0:los_crop_height, 0:width]
     debug_images.append({
         'title': 'los crop',
@@ -268,6 +262,47 @@ def _find_los(frame: np.array) ->  Tuple[int, np.array]:
     return (los, debug_images)
 
 
+def _find_ball(frame: np.array) -> Tuple[Point, List[np.array]]:
+    '''Find ball & return location.
+
+    Return: 
+        1. Coordinate of center of match
+        2. List of debug images
+    '''
+    debug_images = []
+
+    ball_template_path = path.join(path.dirname(__file__), BALL_TEMPLATE_PATH)
+    ball_template = cv2.imread(ball_template_path)
+    ball_template = cv2.cvtColor(ball_template, cv2.COLOR_BGR2RGB)
+    template_height, template_width, _ = ball_template.shape
+    debug_images.append({'title': 'ball template', 'img': ball_template})
+
+    ball_template_black_mask = utils.img_threshold_by_range(img=ball_template, min=[0, 0, 0], max=[10, 10, 10])
+    ball_template_nonblack_mask = cv2.bitwise_not(ball_template_black_mask)
+    # debug_images.append({'title': 'not black pixels', 'img': ball_template_nonblack_mask})
+
+    frame_height, frame_width, _ = frame.shape
+    find_ball_height = int(frame_height*CROPPED_SCOREBOARD_COEF)
+    find_ball_crop=frame[0:find_ball_height,:,:]
+    match_result = cv2.matchTemplate(find_ball_crop, ball_template, BALL_MATCHING_METHOD, mask=ball_template_nonblack_mask)
+
+    # min_match_value, max_match_value, _, match_top_left = cv2.minMaxLoc(match_result)
+    min_match_value, max_match_value, match_top_left, _ = cv2.minMaxLoc(match_result)
+    ball_location = Point(
+        x=int(match_top_left[0] + (template_width/2)),
+        y=int(match_top_left[1] + (template_height/2))
+    )
+    glog.info(f'found ball: {ball_location} (top_left: {match_top_left}, min_match_value: {min_match_value})')
+    
+    match_result_render = np.clip(match_result.copy(), 0, 1)
+    debug_images.append({'title': 'match result', 'img': match_result_render})
+
+    ball_location_render = cv2.circle(frame.copy(), (ball_location.x, ball_location.y), radius=10, color=[0, 0, 0], thickness=-1) 
+    debug_images.append({'title': 'ball location render', 'img': ball_location_render})
+
+    return (ball_location, debug_images)
+
+
 def _unwarp_frame(input_frame: np.array) -> Tuple[np.array, List[Dict[str, Any]]]:
     '''Unwarp frame by converting to orthogonal vertical perspective using a perspective warp.
     
@@ -286,7 +321,7 @@ def _unwarp_frame(input_frame: np.array) -> Tuple[np.array, List[Dict[str, Any]]
         [pt.x, pt.y] for pt in downfield_corners
     ]).astype(np.float32)
     downfield_img = input_frame.copy()
-    cv2.polylines(downfield_img, [downfield_polygon.astype(np.int32)], False, DEBUG_COLOR, 5)
+    cv2.polylines(downfield_img, [downfield_polygon.astype(np.int32)], False, constants.DEBUG_COLOR, 5)
     # debug_images.append({
     #     'title': 'downfield',
     #     'img': downfield_img
@@ -325,7 +360,7 @@ def _unwarp_frame(input_frame: np.array) -> Tuple[np.array, List[Dict[str, Any]]
 
     return (rescaled_unwarped_frame, xscale, debug_images)
 
-def preprocess_frame(display_frame: np.array) -> Tuple[np.array, float, int, List[np.array]]:
+def preprocess_frame(display_frame: np.array) -> Tuple[np.array, float, Point, List[np.array]]:
     '''Prepare frame for parsing. Performs:
     1. unwarps to orthogonal view
     2. crops to just field region
@@ -338,7 +373,7 @@ def preprocess_frame(display_frame: np.array) -> Tuple[np.array, float, int, Lis
     Return:
         1. processed frame
         2. field scale in processed frame (yds/pixels)
-        3. LOS y value in processed frame (top = 0)
+        3. location of ball (top left = 0)
         4. list of debug images
     '''
     debug_images = []
@@ -351,13 +386,16 @@ def preprocess_frame(display_frame: np.array) -> Tuple[np.array, float, int, Lis
     # })
 
     # Next crop out deep backfield
-    los_y, los_dev_images = _find_los(frame=unwarped_frame)
+    # los_y, los_dev_images = _find_los(frame=unwarped_frame)
     # debug_images += los_dev_images
+    ball_location, ball_debug_images = _find_ball(frame=unwarped_frame)
+    # debug_images += ball_debug_images
+    
 
     unwarped_height, unwarped_width = unwarped_frame.shape[0:2]
-    backfield_ymax = los_y + int(BACKFIELD_YDS_TO_INCLUDE*field_scale)
+    backfield_ymax = ball_location.y + int(BACKFIELD_YDS_TO_INCLUDE*field_scale)
 
     processed_height = min(backfield_ymax, unwarped_height)
     processed_frame = unwarped_frame[0:processed_height, :]
 
-    return (processed_frame, field_scale, los_y, debug_images)
+    return (processed_frame, field_scale, ball_location, debug_images)

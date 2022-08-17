@@ -2,12 +2,17 @@
 Various utils.
 '''
 
+import sys
+from os import path
 from typing import List, Dict, Any, Tuple
 import math
+sys.path.append(path.join(path.dirname(__file__), '..')) # upwards relative imports are hacky
 
 import cv2
 from matplotlib import pyplot as plt
 import numpy as np
+
+import constants
 
 def elapsed_ms(start_time: float) -> int:
     '''Return ms elapsed since passed start time (use time.time()).'''
@@ -109,3 +114,35 @@ def get_pixel_extremes(pixels: np.array) -> Tuple[int, int, int, int]:
     ymax = pixels[ymax_idx][1]
 
     return (xmin, xmax, ymin, ymax)
+
+def crop_image(input: np.array, crop_fracs: Tuple[float, float, float, float]) -> Tuple[np.array, np.array]:
+    '''Return cropped image.
+    
+    Args:
+        input: input frame to crop
+        crop_fracs: [xmin, ymin, xmax, ymax] from top left as fractions
+
+    Return:
+        1. cropped image
+        2. debug image - uncropped image with cropbox drawn
+    '''
+    height, width, _ = input.shape
+    crop_pxs = [
+        int(crop_fracs[0]*width),
+        int(crop_fracs[1]*height),
+        int(crop_fracs[2]*width),
+        int(crop_fracs[3]*height),
+    ]
+    crop_img = input[crop_pxs[1]:crop_pxs[3], crop_pxs[0]:crop_pxs[2]]
+
+    cropbox_img = input.copy()
+    cropbox_corners = np.array([
+        [crop_pxs[0], crop_pxs[1]],
+        [crop_pxs[2], crop_pxs[1]],
+        [crop_pxs[2], crop_pxs[3]],
+        [crop_pxs[0], crop_pxs[3]],
+        [crop_pxs[0], crop_pxs[1]],
+    ]).astype(np.int32)
+    cv2.polylines(cropbox_img, [cropbox_corners], False, constants.DEBUG_COLOR, 1)
+
+    return (crop_img, cropbox_img)
