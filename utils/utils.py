@@ -4,13 +4,14 @@ Various utils.
 
 import sys
 from os import path
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Union
 import math
 sys.path.append(path.join(path.dirname(__file__), '..')) # upwards relative imports are hacky
 
 import cv2
 from matplotlib import pyplot as plt
 import numpy as np
+import colorsys
 
 import constants
 
@@ -146,3 +147,41 @@ def crop_image(input: np.array, crop_fracs: Tuple[float, float, float, float]) -
     cv2.polylines(cropbox_img, [cropbox_corners], False, constants.DEBUG_COLOR, 1)
 
     return (crop_img, cropbox_img)
+
+def rgb_to_hsv(rgb: Tuple[int, int, int], normalize: bool = True) -> Tuple[int, int, int]:
+    '''Converts rgb color to hsv.
+    
+    Args:
+        1. rgb: rgb color as tuple of uint8
+        2. normalize: return resulting hsv values 0-1? otherwise 0-255
+
+    Return: hsv color as tuple (normalize = True: 0-1, otherwise uint8)
+    '''
+    hsv = colorsys.rgb_to_hsv(rgb[0]/255, rgb[1]/255, rgb[2]/255)
+    converted_hsv = hsv if normalize else (
+        int(hsv[0]*255),
+        int(hsv[1]*255),
+        int(hsv[2]*255)
+    )
+    return converted_hsv
+
+def hsv_to_rgb(
+    hsv: Union[Tuple[int, int, int], Tuple[float, float, float]],
+    normalized: bool = True
+) -> Tuple[int, int, int]:
+    '''Converts hsv color to rgb.
+    
+    Args:
+        1. hsv: hsv color as tuple of floats 0-1 (normalized = True) or uint8
+        2. normalized: hsv arg normalized as float 0-1? Otherwise uint8
+
+    Return: hsv color as tuple (normalize = True: 0-1, otherwise uint8)
+    '''
+    assert normalized, 'non-normalized hsv input not yet implemented'
+
+    rgb = colorsys.hsv_to_rgb(hsv[0], hsv[1], hsv[2])
+    return (
+        int(rgb[0]*255),
+        int(rgb[1]*255),
+        int(rgb[2]*255)
+    )

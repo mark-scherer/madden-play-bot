@@ -292,7 +292,7 @@ def _find_ball(frame: np.array) -> Tuple[Point, List[np.array]]:
         x=int(match_top_left[0] + (template_width/2)),
         y=int(match_top_left[1] + (template_height/2))
     )
-    glog.info(f'found ball: {ball_location} (top_left: {match_top_left}, min_match_value: {min_match_value})')
+    glog.info(f'found ball: {ball_location}')
     
     match_result_render = np.clip(match_result.copy(), 0, 1)
     debug_images.append({'title': 'match result', 'img': match_result_render})
