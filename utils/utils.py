@@ -41,12 +41,14 @@ def display_images(images: List[Dict[str, Any]]) -> None:
 def img_threshold_by_range(img: np.array, min: List, max: List, reverse: bool = True) -> np.array:
     '''Given input image and list of mins and max pixel values, return thresholded image.
     
+    Can threshold grayscale, rgb, hsv images and more.
+
     Args:
         img: input cv2.Mat
-        min: list of min pixel values for all img channes
-        max: list of max pixel values for all img channes
+        min: list of min pixel values for all img channels
+        max: list of max pixel values for all img channels
 
-    Returns: thresholded binary cv2.Mat
+    Returns: thresholded uint8 binary cv2.Mat
 
     Note: try just using cv2.inRange() as done in the answer code here: https://stackoverflow.com/a/52048325/17591909
     '''
@@ -185,3 +187,51 @@ def hsv_to_rgb(
         int(rgb[1]*255),
         int(rgb[2]*255)
     )
+
+def rgb_to_hsl(rgb: Tuple[int, int, int], normalize: bool = True) -> Tuple[int, int, int]:
+    '''Converts rgb color to hsl.
+    
+    Args:
+        1. rgb: rgb color as tuple of uint8
+        2. normalize: return resulting hsv values 0-1? otherwise 0-255
+
+    Return: hsv color as tuple (normalize = True: 0-1, otherwise uint8)
+    '''
+    assert normalize, 'non-normalized hsv input not yet implemented'
+    
+    hls = colorsys.rgb_to_hls(rgb[0]/255, rgb[1]/255, rgb[2]/255)
+    converted_hsl = (
+        hls[0],
+        hls[2],
+        hls[1]
+    )
+    return converted_hsl
+
+def overlap_semitransparent_color(
+    background_color: Tuple[int, int, int],
+    foreground_color: Tuple[int, int, int],
+    foreground_opacity: float,
+    cast_to_int: bool = True
+) -> Tuple[int, int, int]:
+    '''Return equivalent opaque color after overlaying semitransparent foreground color over opaque background color.'''
+    
+    def _overlay_channel(background_value: int, foreground_value: int, opacity: float, cast_to_int: bool) -> int:
+        overlaid = (opacity*foreground_value) + ((1 - opacity)*background_value)
+        return int(overlaid) if cast_to_int else overlaid
+    
+    assert foreground_opacity >= 0 and foreground_opacity <= 1, \
+        'opacity must be 0-1'
+
+    return (
+        _overlay_channel(background_color[0], foreground_color[0], foreground_opacity, cast_to_int),
+        _overlay_channel(background_color[1], foreground_color[1], foreground_opacity, cast_to_int),
+        _overlay_channel(background_color[2], foreground_color[2], foreground_opacity, cast_to_int),
+    )
+    
+
+def clamp(input, _min=0, _max=1):
+    '''Clamps input between min and max.
+    
+    This really isn't built in to python?
+    '''
+    return max(_min, min(_max, input))

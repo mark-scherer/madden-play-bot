@@ -17,6 +17,7 @@ DEBUG_COLOR = [255, 0, 0]
 # Fraction of image height marking boundary between field and scoreboard in warped frame.
 CROPPED_SCOREBOARD_COEF_WARPED = 0.9
 
+GRASS_COLOR = [45, 195, 96]
 GRASS_MASK = {
     'min': [30, 180, 50],
     'max': [120, 200, 120]

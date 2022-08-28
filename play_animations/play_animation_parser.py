@@ -35,6 +35,24 @@ TEAM_COLOR_H_THRESHOLD = 0.1  # 0-1, count oline pixel hue as either team hue if
 TEAM_COLOR_S_THRESHOLD = 1
 TEAM_COLOR_V_THRESHOLD = 0.3
 
+RECEIVER_ROUTE_COLOR_OPACITY = 0.55  # opacity when mixing offense color over grass for target color
+RECEIVER_ROUTE_MASK_THRESHOLD = [
+    0.04,
+    0.15,
+    0.08 
+]  # HSV, +/- margin around route color when masking routes
+OTHER_ROUTES_COLOR_OPACITY = 0.25
+OTHER_ROUTES_MIXED_HSV_ADJUSTMENT = [
+    0,
+    0.08,
+    0
+]
+OTHER_ROUTES_MASK_THRESHOLD = [
+    0.08,
+    0.14,
+    0.08 
+]
+
 def _get_team_colors(display_frame: np.array) -> Tuple[Tuple[int], Tuple[int], List[np.array]]:
     '''Get colors for both teams.
     
@@ -96,10 +114,12 @@ def _get_team_colors(display_frame: np.array) -> Tuple[Tuple[int], Tuple[int], L
     team_color_2 = utils.hsv_to_rgb(sorted_color_counter[1][0])
     return (team_color_1, team_color_2, debug_images)
 
+
 def _get_offense_color(
     display_frame: np.array,
     preprocessed_frame: np.array,
-    ball_location: Point) -> Tuple[Tuple[int], List[np.array]]:
+    ball_location: Point
+) -> Tuple[Tuple[int], List[np.array]]:
     '''Parse offensive color.
     
     Args:
@@ -151,28 +171,120 @@ def _get_offense_color(
     return (offense_color, debug_images)
 
 
+def _get_route_mask(
+    preprocessed_frame: np.array,
+    offense_color: Tuple[int, int, int]
+) -> Tuple[np.array, List[np.array]]:
+    '''Return mask of routes given processed frame and offense color.
+    
+    Return:
+    1. uint8 binary mask of parsed routes
+    2. list of debug images
+
+    Notes:
+    1. HSV seems to work as well as HSL
+    '''
+    debug_images = []
+
+    # Note: this overlay formula only works with rgb
+    receiver_route_color = utils.overlap_semitransparent_color(
+        background_color=constants.GRASS_COLOR,
+        foreground_color=offense_color,
+        foreground_opacity=RECEIVER_ROUTE_COLOR_OPACITY
+    )
+    receiver_route_color_hsv = utils.rgb_to_hsv(receiver_route_color)
+
+    receiver_route_mask_min = [
+        utils.clamp(receiver_route_color_hsv[0] - RECEIVER_ROUTE_MASK_THRESHOLD[0]),
+        utils.clamp(receiver_route_color_hsv[1] - RECEIVER_ROUTE_MASK_THRESHOLD[1]),
+        utils.clamp(receiver_route_color_hsv[2] - RECEIVER_ROUTE_MASK_THRESHOLD[2]),
+    ]
+    receiver_route_mask_max = [
+        utils.clamp(receiver_route_color_hsv[0] + RECEIVER_ROUTE_MASK_THRESHOLD[0]),
+        utils.clamp(receiver_route_color_hsv[1] + RECEIVER_ROUTE_MASK_THRESHOLD[1]),
+        utils.clamp(receiver_route_color_hsv[2] + RECEIVER_ROUTE_MASK_THRESHOLD[2]),
+    ]
+
+    other_routes_color = utils.overlap_semitransparent_color(
+        background_color=constants.GRASS_COLOR,
+        foreground_color=offense_color,
+        foreground_opacity=OTHER_ROUTES_COLOR_OPACITY
+    )
+    other_routes_color_hsv = utils.rgb_to_hsv(other_routes_color)
+    other_routes_color_hsv = [
+        utils.clamp(other_routes_color_hsv[0] + OTHER_ROUTES_MIXED_HSV_ADJUSTMENT[0]),
+        utils.clamp(other_routes_color_hsv[1] + OTHER_ROUTES_MIXED_HSV_ADJUSTMENT[1]),
+        utils.clamp(other_routes_color_hsv[2] + OTHER_ROUTES_MIXED_HSV_ADJUSTMENT[2]),
+    ]
+
+    other_routes_mask_min = [
+        utils.clamp(other_routes_color_hsv[0] - OTHER_ROUTES_MASK_THRESHOLD[0]),
+        utils.clamp(other_routes_color_hsv[1] - OTHER_ROUTES_MASK_THRESHOLD[1]),
+        utils.clamp(other_routes_color_hsv[2] - OTHER_ROUTES_MASK_THRESHOLD[2]),
+    ]
+    other_routes_mask_max = [
+        utils.clamp(other_routes_color_hsv[0] + OTHER_ROUTES_MASK_THRESHOLD[0]),
+        utils.clamp(other_routes_color_hsv[1] + OTHER_ROUTES_MASK_THRESHOLD[1]),
+        utils.clamp(other_routes_color_hsv[2] + OTHER_ROUTES_MASK_THRESHOLD[2]),
+    ]
+
+    full_size_normalized_frame = preprocessed_frame.astype(np.float32)/255.
+    hsv_frame = cv2.cvtColor(full_size_normalized_frame, cv2.COLOR_RGB2HSV)
+    hsv_frame[:,:,0] /= 360.
+    debug_images.append({'title': 'HSV frame', 'img': hsv_frame})
+
+    receiver_route_mask = utils.img_threshold_by_range(
+        img=hsv_frame,
+        min=receiver_route_mask_min,
+        max=receiver_route_mask_max,
+        reverse=False
+    )
+    debug_images.append({'title': 'receiver route mask', 'img': receiver_route_mask})
+    
+    other_routes_mask = utils.img_threshold_by_range(
+        img=hsv_frame,
+        min=other_routes_mask_min,
+        max=other_routes_mask_max,
+        reverse=False
+    )
+    debug_images.append({'title': 'other routes mask', 'img': other_routes_mask})
+
+    return (preprocessed_frame.copy(), debug_images)
+
+
 def parse(scraped_play_animation: PlayAnimation) -> PlayAnimation:
     '''Parse play out of a scraped play animation'''
+    debug_images = []
+
     input_frame_path = path.join(scraped_play_animation.media_dir, constants.FRAME_FILENAME)
     input_frame = cv2.imread(input_frame_path)
     display_frame = cv2.cvtColor(input_frame, cv2.COLOR_BGR2RGB) 
-    debug_images = [{
-        'title': 'input frame',
-        'img': display_frame
-    }]
+    # debug_images = [{
+    #     'title': 'input frame',
+    #     'img': display_frame
+    # }]
     
     preprocessed_frame, field_scale, ball_location, preprocess_debug_images = preprocessor.preprocess_frame(display_frame=display_frame)
     debug_images += preprocess_debug_images
-    debug_images.append({
-        'title': 'preprocessed',
-        'img': preprocessed_frame
-    })
+    # debug_images.append({
+    #     'title': 'preprocessed',
+    #     'img': preprocessed_frame
+    # })
 
     offense_color, offense_color_debug_images = _get_offense_color(
         display_frame=display_frame,
         preprocessed_frame=preprocessed_frame,
         ball_location=ball_location)
     # debug_images += offense_color_debug_images
+    # glog.info(f'offensive color: {offense_color} (hsv: {utils.rgb_to_hsv(offense_color)})')
+    glog.info(f'offensive color: {offense_color} (hsl: {utils.rgb_to_hsl(offense_color)})')
+
+    routes_mask, routes_debug_images = _get_route_mask(
+        preprocessed_frame=preprocessed_frame,
+        offense_color=offense_color,
+    )
+    debug_images += routes_debug_images
+
 
     utils.display_images(images=debug_images)
     return scraped_play_animation
