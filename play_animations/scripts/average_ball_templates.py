@@ -5,14 +5,17 @@ Smoothly combine multiple individual ball templates.
 import sys
 from os import path
 sys.path.append(path.join(path.dirname(__file__), '..')) # upwards relative imports are hacky
+sys.path.append(path.join(path.dirname(__file__), '..', '..', 'playbooks')) # upwards relative imports are hacky
 sys.path.append(path.join(path.dirname(__file__), '..', '..', 'utils')) # upwards relative imports are hacky
 
 import glog
 import cv2
 import numpy as np
 
-import utils
+import image_utils
+import visualization_utils as vis_utils
 import constants
+from playbook import Play
 
 BALL_TEMPLATE_FILENAMES = [
     'ball_bills_chiefs.png',
@@ -49,13 +52,13 @@ def main():
     blurred_avg_template = cv2.GaussianBlur(avg_template, BLUR_KERNEL_SIZE, 0)
     debug_images.append({'title': 'blurred template', 'img': blurred_avg_template})
 
-    cropped_template, _ = utils.crop_image(input=blurred_avg_template, crop_fracs=TEMPLATE_CROP_FRACS)
+    cropped_template, _ = image_utils.crop_image(input=blurred_avg_template, crop_fracs=TEMPLATE_CROP_FRACS)
     debug_images.append({'title': 'cropped template', 'img': cropped_template})
 
     output_path = path.join(constants.ASSESTS_DIR, OUTPUT_FILENAME)
     writeable_template = cv2.cvtColor(cropped_template, cv2.COLOR_RGB2BGR)
     cv2.imwrite(output_path, writeable_template)
     glog.info(f'saved template image to {output_path}')
-    utils.display_images(images=debug_images)
+    vis_utils.display_images(images=debug_images)
 
 main()

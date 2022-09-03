@@ -12,7 +12,8 @@ import glog
 import cv2
 import numpy as np
 
-import utils
+import visualization_utils as vis_utils
+import image_utils
 import constants
 import play_animation_scraper
 
@@ -129,10 +130,10 @@ def main():
     display_frame = cv2.cvtColor(input_frame, cv2.COLOR_BGR2RGB)
     # debug_images.append({'title': 'input frame', 'img': display_frame})
 
-    middleman_crop, middleman_cropbox = utils.crop_image(input=display_frame, crop_fracs=MIDDLEMAN_CROP)
+    middleman_crop, middleman_cropbox = image_utils.crop_image(input=display_frame, crop_fracs=MIDDLEMAN_CROP)
     debug_images.append({'title': 'middleman crop', 'img': middleman_crop})
 
-    ball_crop, ball_cropbox = utils.crop_image(input=middleman_crop, crop_fracs=BALL_CROP_FRACS)
+    ball_crop, ball_cropbox = image_utils.crop_image(input=middleman_crop, crop_fracs=BALL_CROP_FRACS)
     debug_images += [
         {'title': 'ball cropbox', 'img': ball_cropbox},
         {'title': 'ball crop', 'img': ball_crop},
@@ -140,7 +141,7 @@ def main():
 
     ball_mask = np.ones((ball_crop.shape[0], ball_crop.shape[1]), np.uint8)
     for region, mask in NON_BALL_MASKS.items():
-        non_ball_mask = utils.img_threshold_by_range(ball_crop, min=mask['min'], max=mask['max'], reverse=False)
+        non_ball_mask = image_utils.img_threshold_by_range(ball_crop, min=mask['min'], max=mask['max'], reverse=False)
         other_mask = cv2.bitwise_not(non_ball_mask)
         ball_mask = cv2.bitwise_and(ball_mask, other_mask)
         # debug_images.append({'title': f'non ball mask: {region}', 'img': non_ball_mask})
@@ -167,7 +168,7 @@ def main():
     writeable_ball_img = cv2.cvtColor(cleaned_ball_img, cv2.COLOR_RGB2BGR)
     cv2.imwrite(output_path, writeable_ball_img)
     glog.info(f'saved ball image to {output_path}')
-    utils.display_images(images=debug_images)
+    vis_utils.display_images(images=debug_images)
 
 
 main()

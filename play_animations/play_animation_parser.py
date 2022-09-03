@@ -13,6 +13,9 @@ import cv2
 import numpy as np
 
 import utils
+import color_utils
+import image_utils
+import visualization_utils as vis_utils
 import constants
 import play_animation_preprocessor as preprocessor
 from play_animation import PlayAnimation
@@ -87,8 +90,8 @@ def _get_team_colors(display_frame: np.array) -> Tuple[Tuple[int], Tuple[int], L
     })
 
     # Filter out grass & field markings to just get colored scoreboard elements
-    grass_mask = utils.img_threshold_by_range(img=scoreboard_crop, max=constants.GRASS_MASK['max'], min=constants.GRASS_MASK['min'], reverse=False)
-    white_mask = utils.img_threshold_by_range(img=scoreboard_crop, max=FIELD_MARKS_MASK['max'], min=FIELD_MARKS_MASK['min'], reverse=False)
+    grass_mask = image_utils.img_threshold_by_range(img=scoreboard_crop, max=constants.GRASS_MASK['max'], min=constants.GRASS_MASK['min'], reverse=False)
+    white_mask = image_utils.img_threshold_by_range(img=scoreboard_crop, max=FIELD_MARKS_MASK['max'], min=FIELD_MARKS_MASK['min'], reverse=False)
     nonscoreboard_dilation_kernel = np.ones(NONSCOREBOARD_DILATION_KERNEL_SIZE, np.uint8)
     cleaned_grass_mask = cv2.morphologyEx(grass_mask, cv2.MORPH_DILATE, nonscoreboard_dilation_kernel)
     cleaned_white_mask = cv2.morphologyEx(white_mask, cv2.MORPH_DILATE, nonscoreboard_dilation_kernel)
@@ -104,11 +107,11 @@ def _get_team_colors(display_frame: np.array) -> Tuple[Tuple[int], Tuple[int], L
     })
 
     # Just take two most common colors but first convert to HSV to allow rounding
-    team_colors_pixels = utils.get_mask_white_pixels(mask=team_colors_mask)
+    team_colors_pixels = image_utils.get_mask_white_pixels(mask=team_colors_mask)
     color_counter = {}
     for pixel in team_colors_pixels:
         rgb_color = tuple(team_colors_frame[pixel[1], pixel[0], :])
-        hsv_color = utils.rgb_to_hsv(rgb_color)
+        hsv_color = color_utils.rgb_to_hsv(rgb_color)
         cleaned_hsv_color = (
             round(hsv_color[0], 2),  # hue
             round(hsv_color[1], 1),  # saturation
@@ -119,8 +122,8 @@ def _get_team_colors(display_frame: np.array) -> Tuple[Tuple[int], Tuple[int], L
         color_counter[cleaned_hsv_color] += 1
     sorted_color_counter = sorted(color_counter.items(), key=lambda item: item[1], reverse=True)
     
-    team_color_1 = utils.hsv_to_rgb(sorted_color_counter[0][0])
-    team_color_2 = utils.hsv_to_rgb(sorted_color_counter[1][0])
+    team_color_1 = color_utils.hsv_to_rgb(sorted_color_counter[0][0])
+    team_color_2 = color_utils.hsv_to_rgb(sorted_color_counter[1][0])
     return (team_color_1, team_color_2, debug_images)
 
 
@@ -155,8 +158,8 @@ def _get_offense_color(
     ]
     debug_images.append({'title': 'oline crop', 'img': oline_crop})
 
-    hsv_1 = utils.rgb_to_hsv(team_color_1)
-    hsv_2 = utils.rgb_to_hsv(team_color_2)
+    hsv_1 = color_utils.rgb_to_hsv(team_color_1)
+    hsv_2 = color_utils.rgb_to_hsv(team_color_2)
     hsv_1_count = 0
     hsv_2_count = 0
 
@@ -165,7 +168,7 @@ def _get_offense_color(
 
             # convert to hsv for better rounded comparison
             pixel_color = oline_crop[j, i, :]
-            pixel_hsv = utils.rgb_to_hsv(pixel_color)
+            pixel_hsv = color_utils.rgb_to_hsv(pixel_color)
 
             if abs(pixel_hsv[0] - hsv_1[0]) < TEAM_COLOR_H_THRESHOLD and \
                 abs(pixel_hsv[1] - hsv_1[1]) < TEAM_COLOR_S_THRESHOLD and \
@@ -196,12 +199,12 @@ def _get_route_masks(
     debug_images = []
 
     # First calculate target route colors with MOE
-    receiver_route_color = utils.overlap_semitransparent_color(
+    receiver_route_color = color_utils.overlap_semitransparent_color(
         background_color=constants.GRASS_COLOR,
         foreground_color=offense_color,
         foreground_opacity=RECEIVER_ROUTE_COLOR_OPACITY
     )
-    receiver_route_color_hsv = utils.rgb_to_hsv(receiver_route_color)
+    receiver_route_color_hsv = color_utils.rgb_to_hsv(receiver_route_color)
 
     receiver_route_mask_min = [
         utils.clamp(receiver_route_color_hsv[0] - RECEIVER_ROUTE_MASK_THRESHOLD[0]),
@@ -214,12 +217,12 @@ def _get_route_masks(
         utils.clamp(receiver_route_color_hsv[2] + RECEIVER_ROUTE_MASK_THRESHOLD[2]),
     ]
 
-    other_routes_color = utils.overlap_semitransparent_color(
+    other_routes_color = color_utils.overlap_semitransparent_color(
         background_color=constants.GRASS_COLOR,
         foreground_color=offense_color,
         foreground_opacity=OTHER_ROUTES_COLOR_OPACITY
     )
-    other_routes_color_hsv = utils.rgb_to_hsv(other_routes_color)
+    other_routes_color_hsv = color_utils.rgb_to_hsv(other_routes_color)
     other_routes_color_hsv = [
         utils.clamp(other_routes_color_hsv[0] + OTHER_ROUTES_MIXED_HSV_ADJUSTMENT[0]),
         utils.clamp(other_routes_color_hsv[1] + OTHER_ROUTES_MIXED_HSV_ADJUSTMENT[1]),
@@ -243,7 +246,7 @@ def _get_route_masks(
     hsv_frame[:,:,0] /= 360.
     # debug_images.append({'title': 'HSV frame', 'img': hsv_frame})
 
-    receiver_route_mask = utils.img_threshold_by_range(
+    receiver_route_mask = image_utils.img_threshold_by_range(
         img=hsv_frame,
         min=receiver_route_mask_min,
         max=receiver_route_mask_max,
@@ -251,7 +254,7 @@ def _get_route_masks(
     )
     # debug_images.append({'title': 'receiver route mask', 'img': receiver_route_mask})
     
-    other_routes_mask = utils.img_threshold_by_range(
+    other_routes_mask = image_utils.img_threshold_by_range(
         img=hsv_frame,
         min=other_routes_mask_min,
         max=other_routes_mask_max,
@@ -348,8 +351,7 @@ def parse(scraped_play_animation: PlayAnimation) -> PlayAnimation:
         preprocessed_frame=preprocessed_frame,
         ball_location=ball_location)
     # debug_images += offense_color_debug_images
-    # glog.info(f'offensive color: {offense_color} (hsv: {utils.rgb_to_hsv(offense_color)})')
-    glog.info(f'offensive color: {offense_color} (hsl: {utils.rgb_to_hsl(offense_color)})')
+    glog.info(f'offensive color: {offense_color} (hsv: {color_utils.rgb_to_hsv(offense_color)})')
 
     routes_masks, route_masks_debug_images = _get_route_masks(
         preprocessed_frame=preprocessed_frame,
@@ -357,7 +359,7 @@ def parse(scraped_play_animation: PlayAnimation) -> PlayAnimation:
     )
     debug_images += route_masks_debug_images
 
-    routes, routes_debug_images = utils.parse_routes_from_masks(routes_masks)
+    routes, routes_debug_images = image_utils.parse_routes_from_masks(routes_masks)
     glog.info(f'parsed {len(routes)} routes')
     debug_images += routes_debug_images
 
@@ -373,6 +375,5 @@ def parse(scraped_play_animation: PlayAnimation) -> PlayAnimation:
         routes=scaled_routes
     )
 
-    # utils.display_images(images=debug_images)
-    utils.show_play(parsed_play)
+    vis_utils.show_play(parsed_play)
     return parsed_play

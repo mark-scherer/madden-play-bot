@@ -9,6 +9,7 @@ sys.path.append(path.join(path.dirname(__file__), '..', '..', 'utils')) # upward
 import glog
 
 import utils
+import color_utils
 import constants
 
 GRASS_COLOR_RGB = constants.GRASS_COLOR
@@ -51,15 +52,15 @@ def _format_tuple(label: str, tuple: Tuple[float]) -> str:
         f'{tuple[2]:6.2f}'
 
 def main():
-    route_min_rgb = utils.hsv_to_rgb(ROUTE_MIN_HSV)
-    route_max_rgb = utils.hsv_to_rgb(ROUTE_MAX_HSV)
+    route_min_rgb = color_utils.hsv_to_rgb(ROUTE_MIN_HSV)
+    route_max_rgb = color_utils.hsv_to_rgb(ROUTE_MAX_HSV)
     
     route_target_hsv = [
         (ROUTE_MIN_HSV[0] + ROUTE_MAX_HSV[0])/2,
         (ROUTE_MIN_HSV[1] + ROUTE_MAX_HSV[1])/2,
         (ROUTE_MIN_HSV[2] + ROUTE_MAX_HSV[2])/2,
     ]
-    route_target_rgb = utils.hsv_to_rgb(route_target_hsv)
+    route_target_rgb = color_utils.hsv_to_rgb(route_target_hsv)
 
     route_target_range_hsv = [
         ROUTE_MAX_HSV[0] - ROUTE_MIN_HSV[0],
@@ -72,20 +73,20 @@ def main():
         abs(route_max_rgb[2] - route_min_rgb[2]),
     ]
 
-    offense_color_hsv = utils.rgb_to_hsv(OFFENSE_COLOR_RGB)
+    offense_color_hsv = color_utils.rgb_to_hsv(OFFENSE_COLOR_RGB)
     altered_offense_color_hsv = [
         utils.clamp(offense_color_hsv[0] + OFFENSE_COLOR_ADJUSTMENT_HSV[0]),
         utils.clamp(offense_color_hsv[1] + OFFENSE_COLOR_ADJUSTMENT_HSV[1]),
         utils.clamp(offense_color_hsv[2] + OFFENSE_COLOR_ADJUSTMENT_HSV[2]),
     ]
-    altered_offense_color_rgb = utils.hsv_to_rgb(altered_offense_color_hsv)
+    altered_offense_color_rgb = color_utils.hsv_to_rgb(altered_offense_color_hsv)
 
-    mixed_offense_and_grass_rgb = utils.overlap_semitransparent_color(
+    mixed_offense_and_grass_rgb = color_utils.overlap_semitransparent_color(
         background_color=GRASS_COLOR_RGB,
         foreground_color=altered_offense_color_rgb,
         foreground_opacity=OPACITY
     )
-    mixed_offense_and_grass_hsv = utils.rgb_to_hsv(mixed_offense_and_grass_rgb)
+    mixed_offense_and_grass_hsv = color_utils.rgb_to_hsv(mixed_offense_and_grass_rgb)
 
     mix_error_hsv = [
         mixed_offense_and_grass_hsv[0] - route_target_hsv[0],

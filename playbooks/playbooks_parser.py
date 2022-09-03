@@ -16,7 +16,8 @@ import numpy as np
 import skimage
 from skimage.morphology import skeletonize
 
-from ..utils import utils
+from ..utils import visualization_utils as vis_utils
+from ..utils import image_utils
 import constants
 from playbook import Playbook, Play, Route, Point
 
@@ -72,7 +73,7 @@ def _parse_play_image(
         skeletons_image = np.zeros(img.shape, np.uint8)
         parsed_routes = []
         for feature_type, mask_thresholds in MASK_THRESHOLDS.items():
-            mask = utils.img_threshold_by_range(img, min=mask_thresholds['min'], max=mask_thresholds['max'])
+            mask = image_utils.img_threshold_by_range(img, min=mask_thresholds['min'], max=mask_thresholds['max'])
             closed_mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, CLOSING_KERNERL)
 
             # debug_images += [
@@ -116,7 +117,7 @@ def _parse_play_image(
         if verbose:
             glog.info(f'..finished parsing {play.title()} in {utils.elapsed_ms(parse_start)}ms: {json.dumps(parsed_play.summary())}')
         if debug:
-            utils.display_images(debug_images)
+            vis_utils..display_images(debug_images)
     except Exception as e:
         glog.warning(f'error parsing play: {play.summary()}:\n{traceback.format_exc()}\n{e}\n')
     

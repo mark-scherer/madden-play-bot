@@ -12,7 +12,7 @@ import glog
 import cv2
 import numpy as np
 
-import utils
+import image_utils
 import constants
 from playbook import Point
 
@@ -69,7 +69,7 @@ def _find_downfield_corners(input_frame: np.array) ->  Tuple[List[Point], List[D
     sideline_crop_height = int(height*constants.CROPPED_SCOREBOARD_COEF_WARPED)
     sideline_crop = input_frame.copy()[0:sideline_crop_height, sideline_crop_width:width-1]
 
-    sideline_mask = utils.img_threshold_by_range(sideline_crop, min=constants.SIDELINE_MASK['min'], max=constants.SIDELINE_MASK['max'], reverse=False)
+    sideline_mask = image_utils.img_threshold_by_range(sideline_crop, min=constants.SIDELINE_MASK['min'], max=constants.SIDELINE_MASK['max'], reverse=False)
 
     sideline_erosion_kernel = np.ones(SIDELINE_EROSION_KERNEL_SIZE, np.uint8)
     cleaned_sideline_mask = cv2.morphologyEx(sideline_mask, cv2.MORPH_OPEN, sideline_erosion_kernel)
@@ -77,16 +77,16 @@ def _find_downfield_corners(input_frame: np.array) ->  Tuple[List[Point], List[D
     # Downstream logic for needs to know if back endzone sideline is visible
     back_sideline_crop_width = int(0.5*sideline_crop_width)
     back_sideline_crop = cleaned_sideline_mask[:,0:back_sideline_crop_width]
-    back_sideline_crop_sideline_pixels = utils.get_mask_white_pixels(mask=back_sideline_crop)
+    back_sideline_crop_sideline_pixels = image_utils.get_mask_white_pixels(mask=back_sideline_crop)
     back_sideline_visible = back_sideline_crop_sideline_pixels.shape[0] > 0
 
-    sideline_pixels = utils.get_mask_white_pixels(mask=cleaned_sideline_mask)
+    sideline_pixels = image_utils.get_mask_white_pixels(mask=cleaned_sideline_mask)
 
     # Now that sideline isolated first find ymin and ymax coordinates
         # ymin will be top of sideline
         # ymax will be where sideline intersect image's right edge
     # Remember top of image is y = 0
-    _, _, sideline_ymin, sideline_ymax = utils.get_pixel_extremes(pixels=sideline_pixels)
+    _, _, sideline_ymin, sideline_ymax = image_utils.get_pixel_extremes(pixels=sideline_pixels)
     
     # We now know downfield's BR corner (intersection of sideline with right edge of image)
     sideline_bottom_inside_corner = Point(x=sideline_crop_width-1, y=sideline_ymax)
@@ -101,12 +101,12 @@ def _find_downfield_corners(input_frame: np.array) ->  Tuple[List[Point], List[D
         # First find TR corner of sideline by isolating just the top slice and finding its xmax
         adj_sideline_ymin = max(sideline_ymin, 1)  # makes logic easier if ymin > 0
         sideline_top_pixels = sideline_pixels[sideline_pixels[:,1] < adj_sideline_ymin * (1 + SIDELINE_TOP_MOE)]
-        _, sideline_top_xmax, _, _ = utils.get_pixel_extremes(pixels=sideline_top_pixels)
+        _, sideline_top_xmax, _, _ = image_utils.get_pixel_extremes(pixels=sideline_top_pixels)
         sideline_top_right_corner = Point(x=sideline_top_xmax, y=sideline_ymin)
         
         # Need to convert back sideline TR corner to downfield TR by removing the width of the sideline
         # First must find the width of the sideline by looking at just its left edge
-        _, _, back_sideline_ymin, back_sideline_ymax = utils.get_pixel_extremes(pixels=back_sideline_crop_sideline_pixels)
+        _, _, back_sideline_ymin, back_sideline_ymax = image_utils.get_pixel_extremes(pixels=back_sideline_crop_sideline_pixels)
         sideline_thickness = back_sideline_ymax - back_sideline_ymin
         
         # Now we know downfield TR corner by estimating the inside TR corner of the sideline
@@ -161,14 +161,14 @@ def _find_field_extremes(frame: np.array) -> Tuple[Tuple[int, int, int, int], Li
     '''
     debug_images = []
     
-    grass_mask = utils.img_threshold_by_range(img=frame, min=constants.GRASS_MASK['min'], max=constants.GRASS_MASK['max'], reverse=False)
+    grass_mask = image_utils.img_threshold_by_range(img=frame, min=constants.GRASS_MASK['min'], max=constants.GRASS_MASK['max'], reverse=False)
     debug_images.append({
         'title': 'grass mask',
         'img': grass_mask
     })
 
-    grass_pixels = utils.get_mask_white_pixels(mask=grass_mask)
-    return (utils.get_pixel_extremes(pixels=grass_pixels), debug_images)
+    grass_pixels = image_utils.get_mask_white_pixels(mask=grass_mask)
+    return (image_utils.get_pixel_extremes(pixels=grass_pixels), debug_images)
 
 
 def _find_yscale(frame: np.array) -> Tuple[float, List[np.array]]:
@@ -194,7 +194,7 @@ def _find_yscale(frame: np.array) -> Tuple[float, List[np.array]]:
         'img': yscale_crop
     })
 
-    grass_mask = utils.img_threshold_by_range(img=yscale_crop, min=constants.GRASS_MASK['min'], max=constants.GRASS_MASK['max'], reverse=False)
+    grass_mask = image_utils.img_threshold_by_range(img=yscale_crop, min=constants.GRASS_MASK['min'], max=constants.GRASS_MASK['max'], reverse=False)
     debug_images.append({
         'title': 'grass mask',
         'img': grass_mask
@@ -243,7 +243,7 @@ def _find_los(frame: np.array) ->  Tuple[int, np.array]:
         'img': los_crop
     })
     
-    los_mask = utils.img_threshold_by_range(los_crop, min=LOS_MASK['min'], max=LOS_MASK['max'], reverse=False)
+    los_mask = image_utils.img_threshold_by_range(los_crop, min=LOS_MASK['min'], max=LOS_MASK['max'], reverse=False)
     debug_images.append({
         'title': 'los mask',
         'img': los_mask
@@ -277,7 +277,7 @@ def _find_ball(frame: np.array) -> Tuple[Point, List[np.array]]:
     template_height, template_width, _ = ball_template.shape
     debug_images.append({'title': 'ball template', 'img': ball_template})
 
-    ball_template_black_mask = utils.img_threshold_by_range(img=ball_template, min=[0, 0, 0], max=[10, 10, 10])
+    ball_template_black_mask = image_utils.img_threshold_by_range(img=ball_template, min=[0, 0, 0], max=[10, 10, 10])
     ball_template_nonblack_mask = cv2.bitwise_not(ball_template_black_mask)
     # debug_images.append({'title': 'not black pixels', 'img': ball_template_nonblack_mask})
 

@@ -2,6 +2,10 @@
 Script for scraping and parsing play animations.
 '''
 
+import sys
+from os import path
+sys.path.append(path.join(path.dirname(__file__), '..')) # upwards relative imports are hacky
+
 import glog
 
 import play_animation_scraper

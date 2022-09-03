@@ -11,7 +11,9 @@ import numpy as np
 import cv2 
 import glog
 
-import utils
+import visualization_utils as vis_utils
+import color_utils
+import image_utils
 import constants
 import play_animation_scraper
 import play_animation_parser
@@ -77,7 +79,7 @@ def main():
         display_frame=display_frame,
         preprocessed_frame=preprocessed_frame,
         ball_location=ball_location)
-    glog.info(f'got offense color: RGB: {offense_color}, HSV: {utils.rgb_to_hsv(offense_color)}')
+    glog.info(f'got offense color: RGB: {offense_color}, HSV: {color_utils.rgb_to_hsv(offense_color)}')
 
     # Get HSV frame
     full_size_frame = preprocessed_frame.astype(np.float32)/255.
@@ -86,7 +88,7 @@ def main():
     debug_images.append({'title': 'HSV frame', 'img': hsv_frame})
 
     # Mask routes
-    route_mask = utils.img_threshold_by_range(
+    route_mask = image_utils.img_threshold_by_range(
         img=hsv_frame,
         min=ROUTE_HSV_MIN,
         max=ROUTE_HSV_MAX,
@@ -94,6 +96,6 @@ def main():
     )
     debug_images.append({'title': 'Route mask', 'img': route_mask})
 
-    utils.display_images(images=debug_images)
+    vis_utils.display_images(images=debug_images)
 
 main()
