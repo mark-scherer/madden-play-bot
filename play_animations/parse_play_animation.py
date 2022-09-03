@@ -24,7 +24,7 @@ def main():
 
     # scrape play animation
     scraped_play_animation = play_animation_scraper.scrape(url=url)
-    parsed_play_animation = play_animation_parser.parse(scraped_play_animation=scraped_play_animation)
-    glog.info(f'finished scraping & parsing play animation from url: {url}: {parsed_play_animation}')
+    parsed_play = play_animation_parser.parse(scraped_play_animation=scraped_play_animation)
+    glog.info(f'finished scraping & parsing play animation from url: {url}: {parsed_play.title()}')
 
 main()

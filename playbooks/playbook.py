@@ -32,8 +32,8 @@ class PlaybookType(Enum):
     ALTERNATE = 3
 
 class Point(NamedTuple):
-    x: int  # normalized
-    y: int  # normalized
+    x: float
+    y: float
 
 @dataclass
 class Route:
