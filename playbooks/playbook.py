@@ -22,11 +22,6 @@ class FormationFamily(Enum):
     KICKOFF = 9
     SAFETY_PUNT = 10
 
-class RouteType(Enum):
-    REGULAR_ROUTE = 1
-    PRIMARY_ROUTE = 2
-    DELAYED_ROUTE = 3
-
 class PlayType(Enum):
     RUN = 1
     PASS = 2
@@ -42,7 +37,6 @@ class Point(NamedTuple):
 
 @dataclass
 class Route:
-    type: RouteType
     points: List[Point] = field(default_factory=list) # must do this to default = []
 
     def summary(self) -> Dict[str, Any]:

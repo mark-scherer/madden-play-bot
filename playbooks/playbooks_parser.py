@@ -18,7 +18,7 @@ from skimage.morphology import skeletonize
 
 from ..utils import utils
 import constants
-from playbook import Playbook, Play, Route, RouteType, Point
+from playbook import Playbook, Play, Route, Point
 
 # For vizualizing skeltons in debug images.
 SKELETON_COLORS = [
@@ -32,15 +32,15 @@ SKELETON_COLORS = [
 ]
 
 MASK_THRESHOLDS = {
-    RouteType.REGULAR_ROUTE: {
+    'regular_route': {
         'min': [190, 170, 75],
         'max': [200, 180, 85]
     },
-    RouteType.PRIMARY_ROUTE: {
+    'primary_route': {
         'min': [215, 60, 80],
         'max': [225, 70, 90]
     },
-    RouteType.DELAYED_ROUTE: {
+    'delayed_route': {
         'min': [0, 0, 240],
         'max': [60, 120, 255]
     },
@@ -90,7 +90,6 @@ def _parse_play_image(
                 
                 route_points = np.argwhere(skeletonized == 255)
                 route = Route(
-                    type=feature_type,
                     points=[Point(int(pt[0]), int(pt[1])) for pt in route_points]
                 )
                 parsed_routes.append(route)

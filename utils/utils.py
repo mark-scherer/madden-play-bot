@@ -16,7 +16,7 @@ import skimage
 from skimage.morphology import skeletonize
 
 import constants
-from playbook import Route, RouteType, Point
+from playbook import Route, Point
 
 
 MIN_ROUTE_POINTS = 10  # minimum pixels to parse a route
@@ -286,7 +286,6 @@ def parse_routes_from_masks(masks: List[np.array]) -> Tuple[List[Route], List[np
             skeletons_image += colorized_skeleton
             
             routes.append(Route(
-                type=RouteType.REGULAR_ROUTE,
                 points=[Point(int(pt[0]), int(pt[1])) for pt in route_points]
             ))
 
