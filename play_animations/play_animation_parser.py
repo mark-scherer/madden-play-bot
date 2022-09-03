@@ -16,7 +16,7 @@ import utils
 import constants
 import play_animation_preprocessor as preprocessor
 from play_animation import PlayAnimation
-from playbook import Point
+from playbook import Play, Formation, Route, Point
 
 SCOREBOARD_COLORS_CROP_WIDTH = 0.5
 
@@ -300,6 +300,30 @@ def _get_route_masks(
     )
 
 
+def scale_routes(raw_routes: List[Route], ball_location: Point, field_scale: float) -> List[Route]:
+    '''Convert routes from pixel coordinates to route_coordinates.'''
+    scaled_routes = []
+    for raw_route in raw_routes:
+        scaled_points = []
+        for raw_point in raw_route.points:
+            # convert to ball-centric coordinates
+            x = raw_point.x - ball_location.x
+            y = raw_point.y - ball_location.y
+
+            # scale to yards
+            x /= field_scale
+            y /= field_scale
+
+            # flip y (in pixel coordinates, y=0 at top of screen)
+            y *= -1
+
+            scaled_points.append(Point(x=x, y=y))
+        scaled_routes.append(Route(
+            points=scaled_points
+        ))
+    return scaled_routes
+
+
 def parse(scraped_play_animation: PlayAnimation) -> PlayAnimation:
     '''Parse play out of a scraped play animation'''
     debug_images = []
@@ -337,6 +361,18 @@ def parse(scraped_play_animation: PlayAnimation) -> PlayAnimation:
     glog.info(f'parsed {len(routes)} routes')
     debug_images += routes_debug_images
 
+    scaled_routes = scale_routes(raw_routes=routes, ball_location=ball_location, field_scale=field_scale)
+    parsed_play = Play(
+        id=-1,
+        name='unknown',
+        formation=Formation(
+            id=-1,
+            name='unknown',
+            family=-1
+        ),
+        routes=scaled_routes
+    )
 
-    utils.display_images(images=debug_images)
-    return scraped_play_animation
+    # utils.display_images(images=debug_images)
+    utils.show_play(parsed_play)
+    return parsed_play
