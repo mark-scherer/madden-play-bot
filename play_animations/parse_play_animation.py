@@ -8,7 +8,7 @@ import play_animation_scraper
 import play_animation_parser
 
 # Does not include back sideline
-TEST_PLAY_ANIMATION_URL = 'https://twitter.com/NextGenStats/status/1493714866200199172'
+# TEST_PLAY_ANIMATION_URL = 'https://twitter.com/NextGenStats/status/1493714866200199172'
 
 # Includes back sideline
 # TEST_PLAY_ANIMATION_URL = 'https://twitter.com/NextGenStats/status/1485447699600003077'
@@ -17,7 +17,7 @@ TEST_PLAY_ANIMATION_URL = 'https://twitter.com/NextGenStats/status/1493714866200
 # TEST_PLAY_ANIMATION_URL = 'https://twitter.com/NextGenStats/status/1493714806162878466'
 
 # seahawks at steelers (offense) (2022 season)
-# TEST_PLAY_ANIMATION_URL = 'https://twitter.com/NextGenStats/status/1559573875255431169'
+TEST_PLAY_ANIMATION_URL = 'https://twitter.com/NextGenStats/status/1559573875255431169'
 
 def main():
     url = TEST_PLAY_ANIMATION_URL

@@ -53,6 +53,15 @@ OTHER_ROUTES_MASK_THRESHOLD = [
     0.08 
 ]
 
+OVERLAP_CALC_DILATION_KERNEL_SIZE = (3, 3)
+OVERLAP_REMOVAL_DILATION_KERNEL_SIZE = (3, 3)
+
+RECEIVER_ROUTE_CLEANING_KERNEL_SIZE = (3, 3)
+OTHER_ROUTES_CLEANING_KERNEL_SIZE = (2, 2)
+RECEIVER_ROUTE_CLOSING_KERNEL_SIZE = (10, 10)
+OTHER_ROUTES_CLOSING_KERNEL_SIZE = (10, 10)
+
+
 def _get_team_colors(display_frame: np.array) -> Tuple[Tuple[int], Tuple[int], List[np.array]]:
     '''Get colors for both teams.
     
@@ -171,14 +180,14 @@ def _get_offense_color(
     return (offense_color, debug_images)
 
 
-def _get_route_mask(
+def _get_route_masks(
     preprocessed_frame: np.array,
     offense_color: Tuple[int, int, int]
-) -> Tuple[np.array, List[np.array]]:
+) -> Tuple[List[np.array], List[np.array]]:
     '''Return mask of routes given processed frame and offense color.
     
     Return:
-    1. uint8 binary mask of parsed routes
+    1. list of uint8 binary mask of parsed routes
     2. list of debug images
 
     Notes:
@@ -186,7 +195,7 @@ def _get_route_mask(
     '''
     debug_images = []
 
-    # Note: this overlay formula only works with rgb
+    # First calculate target route colors with MOE
     receiver_route_color = utils.overlap_semitransparent_color(
         background_color=constants.GRASS_COLOR,
         foreground_color=offense_color,
@@ -228,10 +237,11 @@ def _get_route_mask(
         utils.clamp(other_routes_color_hsv[2] + OTHER_ROUTES_MASK_THRESHOLD[2]),
     ]
 
+    # Get raw route masks from HSV frame
     full_size_normalized_frame = preprocessed_frame.astype(np.float32)/255.
     hsv_frame = cv2.cvtColor(full_size_normalized_frame, cv2.COLOR_RGB2HSV)
     hsv_frame[:,:,0] /= 360.
-    debug_images.append({'title': 'HSV frame', 'img': hsv_frame})
+    # debug_images.append({'title': 'HSV frame', 'img': hsv_frame})
 
     receiver_route_mask = utils.img_threshold_by_range(
         img=hsv_frame,
@@ -239,7 +249,7 @@ def _get_route_mask(
         max=receiver_route_mask_max,
         reverse=False
     )
-    debug_images.append({'title': 'receiver route mask', 'img': receiver_route_mask})
+    # debug_images.append({'title': 'receiver route mask', 'img': receiver_route_mask})
     
     other_routes_mask = utils.img_threshold_by_range(
         img=hsv_frame,
@@ -247,9 +257,47 @@ def _get_route_mask(
         max=other_routes_mask_max,
         reverse=False
     )
-    debug_images.append({'title': 'other routes mask', 'img': other_routes_mask})
+    # debug_images.append({'title': 'other routes mask', 'img': other_routes_mask})
 
-    return (preprocessed_frame.copy(), debug_images)
+    # Clean route masks: start by removing any overlap between two reciever masks.
+        # Because masks target different colors, overlap likely to be junk.
+    overlap_calc_dilation_kernel = np.ones(OVERLAP_CALC_DILATION_KERNEL_SIZE, np.uint8)
+    diluted_receiver_route_mask = cv2.morphologyEx(receiver_route_mask, cv2.MORPH_DILATE, overlap_calc_dilation_kernel)
+    diluted_other_routes_mask = cv2.morphologyEx(other_routes_mask, cv2.MORPH_DILATE, overlap_calc_dilation_kernel)
+
+    mask_overlap = cv2.bitwise_and(diluted_receiver_route_mask, diluted_other_routes_mask)
+    # debug_images.append({'title': 'masks overlap', 'img': mask_overlap})
+    
+    overlap_removal_dilation_kernel = np.ones(OVERLAP_REMOVAL_DILATION_KERNEL_SIZE, np.uint8)
+    diluted_mask_overlap = cv2.morphologyEx(mask_overlap, cv2.MORPH_DILATE, overlap_removal_dilation_kernel)
+    # debug_images.append({'title': 'diluted masks overlap', 'img': diluted_mask_overlap})
+
+    # Only use diluted overlap for other routes mask - for reciever route mask diluation removes the actual route.
+    receiver_route_mask_minus_overlap = cv2.bitwise_and(receiver_route_mask, receiver_route_mask, mask=cv2.bitwise_not(mask_overlap))
+    other_routes_mask_minus_overlap = cv2.bitwise_and(other_routes_mask, other_routes_mask, mask=cv2.bitwise_not(diluted_mask_overlap))
+    # debug_images.append({'title': 'receiver routes mask - overlap', 'img': receiver_route_mask_minus_overlap})
+    # debug_images.append({'title': 'other routes mask - overlap', 'img': other_routes_mask_minus_overlap})
+
+    # Next perform standard mask cleaning.
+    reciever_route_cleaning_kernel = np.ones(RECEIVER_ROUTE_CLEANING_KERNEL_SIZE, np.uint8)
+    receiver_route_cleaned_mask = cv2.morphologyEx(receiver_route_mask_minus_overlap, cv2.MORPH_OPEN, reciever_route_cleaning_kernel)
+    other_routes_cleaning_kernel = np.ones(OTHER_ROUTES_CLEANING_KERNEL_SIZE, np.uint8)
+    other_routes_cleaned_mask = cv2.morphologyEx(other_routes_mask_minus_overlap, cv2.MORPH_OPEN, other_routes_cleaning_kernel)
+    # debug_images.append({'title': 'cleaned receiver route mask', 'img': receiver_route_cleaned_mask})
+    # debug_images.append({'title': 'cleaned other routes mask', 'img': other_routes_cleaned_mask})
+
+    # Try to close masks to connect separate parts
+    reciever_route_closing_kernel = np.ones(RECEIVER_ROUTE_CLOSING_KERNEL_SIZE, np.uint8)
+    receiver_route_closed_mask = cv2.morphologyEx(receiver_route_cleaned_mask, cv2.MORPH_CLOSE, reciever_route_closing_kernel)
+    other_routes_closing_kernel = np.ones(OTHER_ROUTES_CLOSING_KERNEL_SIZE, np.uint8)
+    other_routes_closed_mask = cv2.morphologyEx(other_routes_cleaned_mask, cv2.MORPH_CLOSE, other_routes_closing_kernel)
+    debug_images.append({'title': 'closed receiver route mask', 'img': receiver_route_closed_mask})
+    debug_images.append({'title': 'closed other routes mask', 'img': other_routes_closed_mask})
+
+    return (
+        [receiver_route_closed_mask, other_routes_closed_mask], 
+        debug_images
+    )
 
 
 def parse(scraped_play_animation: PlayAnimation) -> PlayAnimation:
@@ -266,10 +314,10 @@ def parse(scraped_play_animation: PlayAnimation) -> PlayAnimation:
     
     preprocessed_frame, field_scale, ball_location, preprocess_debug_images = preprocessor.preprocess_frame(display_frame=display_frame)
     debug_images += preprocess_debug_images
-    # debug_images.append({
-    #     'title': 'preprocessed',
-    #     'img': preprocessed_frame
-    # })
+    debug_images.append({
+        'title': 'preprocessed',
+        'img': preprocessed_frame
+    })
 
     offense_color, offense_color_debug_images = _get_offense_color(
         display_frame=display_frame,
@@ -279,10 +327,14 @@ def parse(scraped_play_animation: PlayAnimation) -> PlayAnimation:
     # glog.info(f'offensive color: {offense_color} (hsv: {utils.rgb_to_hsv(offense_color)})')
     glog.info(f'offensive color: {offense_color} (hsl: {utils.rgb_to_hsl(offense_color)})')
 
-    routes_mask, routes_debug_images = _get_route_mask(
+    routes_masks, route_masks_debug_images = _get_route_masks(
         preprocessed_frame=preprocessed_frame,
         offense_color=offense_color,
     )
+    debug_images += route_masks_debug_images
+
+    routes, routes_debug_images = utils.parse_routes_from_masks(routes_masks)
+    glog.info(f'parsed {len(routes)} routes')
     debug_images += routes_debug_images
 
 

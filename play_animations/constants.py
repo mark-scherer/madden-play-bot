@@ -13,6 +13,15 @@ MEDIA_FILENAME = 'animation.mp4'
 FRAME_FILENAME = 'frame_0.jpg'
 
 DEBUG_COLOR = [255, 0, 0]
+ROUTE_COLORS = [
+    [255,0,0],
+    [0,255,0],
+    [0,0,255],
+    [255,255,0],
+    [255,0,255],
+    [0,255,255],
+    [255,255,255],
+]
 
 # Fraction of image height marking boundary between field and scoreboard in warped frame.
 CROPPED_SCOREBOARD_COEF_WARPED = 0.9

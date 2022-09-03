@@ -12,8 +12,15 @@ import cv2
 from matplotlib import pyplot as plt
 import numpy as np
 import colorsys
+import skimage
+from skimage.morphology import skeletonize
 
 import constants
+from playbook import Route, RouteType, Point
+
+
+MIN_ROUTE_POINTS = 10  # minimum pixels to parse a route
+
 
 def elapsed_ms(start_time: float) -> int:
     '''Return ms elapsed since passed start time (use time.time()).'''
@@ -235,3 +242,56 @@ def clamp(input, _min=0, _max=1):
     This really isn't built in to python?
     '''
     return max(_min, min(_max, input))
+
+
+def parse_routes_from_masks(masks: List[np.array]) -> Tuple[List[Route], List[np.array]]:
+    '''Given a list of cleaned masks parse into individual routes.
+    
+    Return:
+        1. list of routes
+        2. list of debug images
+    '''
+    assert len(masks) > 0
+    mask_shape = masks[0].shape
+
+    debug_images = []
+    skeletons_image = np.zeros([mask_shape[0], mask_shape[1], 3], np.uint8)
+
+    routes = []
+    contour_idx = -1
+    for i, mask in enumerate(masks):
+        contours, _ = cv2.findContours(mask, mode=cv2.RETR_LIST, method=cv2.CHAIN_APPROX_SIMPLE)
+        all_mask_contours_image = np.zeros(mask_shape, np.uint8)
+        all_mask_contours_image = cv2.drawContours(all_mask_contours_image, contours, -1, constants.DEBUG_COLOR, -1)
+        # debug_images.append({'title': f'all contour {i}', 'img': all_mask_contours_image})
+        
+        for j, contour in enumerate(contours):
+            contour_idx += 1
+            color_idx = contour_idx % len(constants.ROUTE_COLORS)
+            debug_color = constants.ROUTE_COLORS[color_idx]
+            
+            contour_image = np.zeros(mask_shape, np.uint8)
+            contour_image = cv2.drawContours(contour_image, [contour], 0, (255, 255, 255), -1)
+            # debug_images.append({'title': f'contour {contour_idx}', 'img': contour_image.copy()})
+
+            skeletonized = skeletonize(skimage.img_as_float(contour_image.copy())).astype('uint8') * 255
+            route_points = np.argwhere(skeletonized == 255)
+            if len(route_points) < MIN_ROUTE_POINTS:
+                continue
+
+            colorized_skeleton = cv2.cvtColor(skeletonized, cv2.COLOR_GRAY2RGB)
+            colorized_skeleton[:,:,0] = np.multiply(colorized_skeleton[:,:,0], debug_color[0]/255)
+            colorized_skeleton[:,:,1] = np.multiply(colorized_skeleton[:,:,1], debug_color[1]/255)
+            colorized_skeleton[:,:,2] = np.multiply(colorized_skeleton[:,:,2], debug_color[2]/255)
+            skeletons_image += colorized_skeleton
+            
+            routes.append(Route(
+                type=RouteType.REGULAR_ROUTE,
+                points=[Point(int(pt[0]), int(pt[1])) for pt in route_points]
+            ))
+
+    debug_images.append({'title': 'skeletons', 'img': skeletons_image})
+    
+    return (routes, debug_images)
+
+
