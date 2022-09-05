@@ -3,12 +3,13 @@ Functions for parsing already scraped play images into usable data.
 '''
 
 import sys
+from os import path
 from typing import List, Dict, Any, Tuple
 import traceback
 import time
 import copy
 import json
-sys.path.append(path.join(path.dirname(__file__), '..', 'utils')) # upwards relative imports are hacky
+sys.path.append(path.join(path.dirname(__file__), '..')) # upwards relative imports are hacky
 
 import glog
 import cv2
@@ -16,10 +17,12 @@ import numpy as np
 import skimage
 from skimage.morphology import skeletonize
 
-from ..utils import visualization_utils as vis_utils
-from ..utils import image_utils
+from utils import utils
+from utils import visualization_utils as vis_utils
+from utils import image_utils
 import constants
-from playbook import Playbook, Play, Route, Point
+from plays.play import Play, Route, Point
+from playbooks.playbook import Playbook
 
 # For vizualizing skeltons in debug images.
 SKELETON_COLORS = [
@@ -117,28 +120,26 @@ def _parse_play_image(
         if verbose:
             glog.info(f'..finished parsing {play.title()} in {utils.elapsed_ms(parse_start)}ms: {json.dumps(parsed_play.summary())}')
         if debug:
-            vis_utils..display_images(debug_images)
+            vis_utils.display_images(debug_images)
     except Exception as e:
         glog.warning(f'error parsing play: {play.summary()}:\n{traceback.format_exc()}\n{e}\n')
     
     return parsed_play
 
-def parse():
+def parse(playbook_dir: str):
     '''For now access scraped plays via csv and locally downloaded play images'''
-    # scraped_playbooks = Playbook.playbooks_from_csv(filepath=constants.PLAYBOOK_CSV_PATH)
-    scraped_playbooks = Playbook.read_playbooks_from_json(filepath=constants.SCRAPED_PLAYBOOK_PATH)
-    parsed_playbooks = []
-    for playbook in scraped_playbooks:
-        parse_start = time.time()
-        parsed_plays = []
-        for scraped_play in playbook.plays:
-            pp = _parse_play_image(scraped_play)
-            if pp:
-                parsed_plays.append(pp)
-        parsed_pb = copy.copy(playbook)
-        parsed_pb.plays = parsed_plays
-        parsed_playbooks.append(parsed_pb)
-        glog.info(f'successfully parsed {len(parsed_pb.plays)} / {len(playbook.plays)} plays from {parsed_pb.name} in {utils.elapsed_ms(parse_start)}ms')
 
+    scraped_playbook_filepath = path.join(playbook_dir, constants.SCRAPED_PLAYBOOK_DATA_FILENAME)
+    scraped_playbook = Playbook.read_from_json(scraped_playbook_filepath)
+    parsed_playbook = copy.copy(scraped_playbook)
+    parsed_playbook.plays = []
 
-    Playbook.write_playbooks_to_json(filepath=constants.PARSED_PLAYBOOK_PATH, playbooks=parsed_playbooks)
+    parse_start = time.time()
+    for scraped_play in scraped_playbook.plays:
+        parsed_play = _parse_play_image(scraped_play)
+        if parsed_play:
+            parsed_playbook.plays.append(parsed_play)
+
+    glog.info(f'successfully parsed {len(parsed_playbook.plays)} / {len(scraped_playbook.plays)} plays from {parsed_playbook.title()} in {utils.elapsed_ms(parse_start)}ms')
+    parsed_playbook_filepath = path.join(playbook_dir, constants.PARSED_PLAYBOOK_DATA_FILENAME)
+    parsed_playbook.write_to_json(filepath=parsed_playbook_filepath)

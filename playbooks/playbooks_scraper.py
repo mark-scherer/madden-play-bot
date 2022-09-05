@@ -77,4 +77,5 @@ def scrape(
     playbook_dir = path.join(constants.PLAYBOOKS_BASE_DIR, f'{playbook.madden_year}-{playbook.id}')
 
     playbook = _download_play_images(playbook_dir=playbook_dir, playbook=playbook)
-    playbook.write_to_json(filepath=path.join(playbook_dir, constants.PLAYBOOK_DATA_FILENAME))
+    scraped_playbook_filepath = path.join(playbook_dir, constants.SCRAPED_PLAYBOOK_DATA_FILENAME)
+    playbook.write_to_json(filepath=scraped_playbook_filepath)

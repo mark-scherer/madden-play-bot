@@ -11,7 +11,9 @@ PLAY_ANIMATIONS_DIR = path.join(BASE_DIR, 'play_animations')
 SCRATCH_DIR = path.join(BASE_DIR, 'scratch')
 PLAYBOOKS_BASE_DIR = path.join(BASE_DIR, 'playbooks')
 PLAY_IMAGES_SUBDIR = 'images'
-PLAYBOOK_DATA_FILENAME = 'playbook.json'
+
+SCRAPED_PLAYBOOK_DATA_FILENAME = 'scraped_playbook.json'
+PARSED_PLAYBOOK_DATA_FILENAME = 'parsed_playbook.json'
 
 MEDIA_FILENAME = 'animation.mp4'
 FRAME_FILENAME = 'frame_0.jpg'

@@ -42,15 +42,12 @@ class Route:
 
     def to_dict(self) -> Dict[str, Any]:
         return {
-            'route_type': str(self.type),
             'route_points': [(point.x, point.y) for point in self.points]
         }
 
     @staticmethod
     def parse(obj: Dict) -> 'Route':
-        type_str = obj['route_type'].split('.')[1]
         return Route(
-            type = RouteType[type_str],
             points = object['route_points']
         )
 

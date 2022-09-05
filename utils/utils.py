@@ -2,6 +2,8 @@
 Various utils.
 '''
 
+import time
+
 
 def elapsed_ms(start_time: float) -> int:
     '''Return ms elapsed since passed start time (use time.time()).'''

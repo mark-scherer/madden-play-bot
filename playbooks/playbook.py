@@ -30,7 +30,8 @@ class Playbook:
     plays: List[Play] = None
 
     def title(self) -> str:
-        return f'{self.name} {self.type.lower()} ({self.madden_year}-{self.id})'
+        type_str = str(self.type).split('.')[1].lower()
+        return f'{self.name} {type_str} ({self.madden_year}-{self.id})'
     
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -61,10 +62,10 @@ class Playbook:
         glog.info(f'..wrote {self.title()} playbook to {filepath}')
 
     @staticmethod
-    def read_playbooks_from_json(filepath: str) -> List['Playbook']:
-        playbooks = []
+    def read_from_json(filepath: str) -> 'Playbook':
+        playbook = None
         with open(filepath, 'r') as f:
             playbooks_dict = json.loads(f.read())
-            playbooks = [Playbook.parse(playbook_obj) for playbook_obj in playbooks_dict]
-        return playbooks
+            playbook = Playbook.parse(playbooks_dict)
+        return playbook
             
