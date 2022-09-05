@@ -375,5 +375,5 @@ def parse(scraped_play_animation: PlayAnimation) -> PlayAnimation:
         routes=scaled_routes
     )
 
-    vis_utils.show_play(parsed_play)
+    # vis_utils.show_play(parsed_play)
     return parsed_play

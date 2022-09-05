@@ -36,7 +36,6 @@ class Route:
     def summary(self) -> Dict[str, Any]:
         '''Generate summary dict.'''
         return {
-            'type': str(self.type),
             'point_count': len(self.points)
         }
 
@@ -48,7 +47,7 @@ class Route:
     @staticmethod
     def parse(obj: Dict) -> 'Route':
         return Route(
-            points = object['route_points']
+            points = obj['route_points']
         )
 
 
