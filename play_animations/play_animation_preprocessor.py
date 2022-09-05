@@ -6,7 +6,7 @@ import sys
 from os import path
 from typing import List, Tuple, Dict, Any
 sys.path.append(path.join(path.dirname(__file__), '..', 'utils')) # upwards relative imports are hacky
-sys.path.append(path.join(path.dirname(__file__), '..', 'playbooks')) # upwards relative imports are hacky
+sys.path.append(path.join(path.dirname(__file__), '..')) # upwards relative imports are hacky
 
 import glog
 import cv2
@@ -14,7 +14,7 @@ import numpy as np
 
 import image_utils
 import constants
-from playbook import Point
+from plays.play import Point
 
 # Generic contants
 # Fraction of image height to keep when cropping out bottom scoreboard for dewarped frame

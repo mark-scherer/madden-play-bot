@@ -5,17 +5,17 @@ Smoothly combine multiple individual ball templates.
 import sys
 from os import path
 sys.path.append(path.join(path.dirname(__file__), '..')) # upwards relative imports are hacky
-sys.path.append(path.join(path.dirname(__file__), '..', '..', 'playbooks')) # upwards relative imports are hacky
-sys.path.append(path.join(path.dirname(__file__), '..', '..', 'utils')) # upwards relative imports are hacky
+# sys.path.append(path.join(path.dirname(__file__), '..', '..', 'playbooks')) # upwards relative imports are hacky
+# sys.path.append(path.join(path.dirname(__file__), '..', '..', 'utils')) # upwards relative imports are hacky
+sys.path.append(path.join(path.dirname(__file__), '..', '..')) # upwards relative imports are hacky
 
 import glog
 import cv2
 import numpy as np
 
-import image_utils
-import visualization_utils as vis_utils
+import utils.image_utils as image_utils
+import utils.visualization_utils as vis_utils
 import constants
-from playbook import Play
 
 BALL_TEMPLATE_FILENAMES = [
     'ball_bills_chiefs.png',

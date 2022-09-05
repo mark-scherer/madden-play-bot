@@ -4,6 +4,7 @@ import sys
 from os import path
 from typing import List, Tuple
 sys.path.append(path.join(path.dirname(__file__), '..')) # upwards relative imports are hacky
+sys.path.append(path.join(path.dirname(__file__), '..')) # upwards relative imports are hacky
 
 import cv2
 import numpy as np
@@ -11,7 +12,17 @@ import skimage
 from skimage.morphology import skeletonize
 
 import constants
-from playbook import Play, Route, Point
+from plays.play import Play, Route, Point
+
+ROUTE_COLORS = [
+    [255,0,0],
+    [0,255,0],
+    [0,0,255],
+    [255,255,0],
+    [255,0,255],
+    [0,255,255],
+    [255,255,255],
+]
 
 
 def img_threshold_by_range(img: np.array, min: List, max: List, reverse: bool = True) -> np.array:
@@ -156,8 +167,8 @@ def parse_routes_from_masks(masks: List[np.array]) -> Tuple[List[Route], List[np
         
         for j, contour in enumerate(contours):
             contour_idx += 1
-            color_idx = contour_idx % len(constants.ROUTE_COLORS)
-            debug_color = constants.ROUTE_COLORS[color_idx]
+            color_idx = contour_idx % len(ROUTE_COLORS)
+            debug_color = ROUTE_COLORS[color_idx]
             
             contour_image = np.zeros(mask_shape, np.uint8)
             contour_image = cv2.drawContours(contour_image, [contour], 0, (255, 255, 255), -1)

@@ -2,16 +2,19 @@
 Functions for scraping & saving a play animation.
 '''
 
-from urllib.parse import urlparse
+import sys
 from os import path
+from urllib.parse import urlparse
 import pathlib
 import subprocess
+sys.path.append(path.join(path.dirname(__file__), '..')) # upwards relative imports are hacky
 
 import glog
 
 import constants
 from play_animation import PlayAnimation
 
+TWITTER_NETLOC = 'twitter.com'
 FFMPEG_QUALITY = 1 # 1-31, lower better
 
 def run_youtube_dl(url: str, output_path: str) -> None:
@@ -36,7 +39,7 @@ def scrape(url: str) -> PlayAnimation:
     '''Scrape play animation and parse first frame from given url.'''
 
     parsed_url = urlparse(url)
-    assert parsed_url.netloc == constants.TWITTER_NETLOC, \
+    assert parsed_url.netloc == TWITTER_NETLOC, \
         f'only supports twitter urls, found {parsed_url.netloc}'
 
     parsed_path = parsed_url.path

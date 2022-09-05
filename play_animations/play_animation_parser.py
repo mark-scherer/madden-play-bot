@@ -6,7 +6,7 @@ import sys
 from os import path
 from typing import Tuple, List
 sys.path.append(path.join(path.dirname(__file__), '..', 'utils')) # upwards relative imports are hacky
-sys.path.append(path.join(path.dirname(__file__), '..', 'playbooks')) # upwards relative imports are hacky
+sys.path.append(path.join(path.dirname(__file__), '..', '..')) # upwards relative imports are hacky
 
 import glog
 import cv2
@@ -19,7 +19,7 @@ import visualization_utils as vis_utils
 import constants
 import play_animation_preprocessor as preprocessor
 from play_animation import PlayAnimation
-from playbook import Play, Formation, Route, Point
+from plays.play import Play, Formation, Route, Point
 
 SCOREBOARD_COLORS_CROP_WIDTH = 0.5
 

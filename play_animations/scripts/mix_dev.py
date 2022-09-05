@@ -4,12 +4,12 @@ import sys
 from os import path
 from typing import Tuple
 sys.path.append(path.join(path.dirname(__file__), '..')) # upwards relative imports are hacky
-sys.path.append(path.join(path.dirname(__file__), '..', '..', 'utils')) # upwards relative imports are hacky
+sys.path.append(path.join(path.dirname(__file__), '..', '..')) # upwards relative imports are hacky
 
 import glog
 
-import utils
-import color_utils
+import utils.utils as utils
+import utils.color_utils as color_utils
 import constants
 
 GRASS_COLOR_RGB = constants.GRASS_COLOR

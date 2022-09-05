@@ -4,12 +4,12 @@ import sys
 from os import path
 from typing import List, Dict, Any
 import math
-sys.path.append(path.join(path.dirname(__file__), '..', 'playbooks')) # upwards relative imports are hacky
+sys.path.append(path.join(path.dirname(__file__), '..')) # upwards relative imports are hacky
 
 from matplotlib import pyplot as plt
 from matplotlib import patches
 
-from playbook import Play
+from plays.play import Play
 
 
 def display_images(images: List[Dict[str, Any]]) -> None:
