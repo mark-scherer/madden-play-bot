@@ -5,8 +5,14 @@ Constants for play animation scraping & parsing.
 from os import path
 
 ASSESTS_DIR = path.join(path.dirname(__file__), 'play_animations', 'assets')
-SCRATCH_DIR = '/tmp/play_animations_scratch/'
-PLAY_ANIMATIONS_DIR = '/tmp/play_animations/'
+
+BASE_DIR = '/tmp/madden-play-bot/'
+PLAY_ANIMATIONS_DIR = path.join(BASE_DIR, 'play_animations')
+SCRATCH_DIR = path.join(BASE_DIR, 'scratch')
+PLAYBOOKS_BASE_DIR = path.join(BASE_DIR, 'playbooks')
+PLAY_IMAGES_SUBDIR = 'images'
+PLAYBOOK_DATA_FILENAME = 'playbook.json'
+
 MEDIA_FILENAME = 'animation.mp4'
 FRAME_FILENAME = 'frame_0.jpg'
 

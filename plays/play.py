@@ -11,11 +11,12 @@ class FormationFamily(Enum):
     STRONG = 3
     WEAK = 4
     GUN = 5
-    GOAL_LINE = 6
-    HAIL_MARY = 7
-    SPECIAL_TEAMS = 8
-    KICKOFF = 9
-    SAFETY_PUNT = 10
+    PISTOL = 7
+    HAIL_MARY = 8
+    GOAL_LINE = 9
+    SPECIAL_TEAMS = 10
+    KICKOFF = 11
+    SAFETY_PUNT = 12
 
 
 class PlayType(Enum):

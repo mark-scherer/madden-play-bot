@@ -4,7 +4,7 @@ Functions for scraping & saving entire madden playbook from generic source.
 
 from typing import List
 import pathlib
-import os
+from os import path
 
 import glog
 import requests
@@ -13,14 +13,8 @@ import playbooks_scraper_huddle_gg as huddle_gg
 from playbook import Playbook
 import constants
 
-MADDEN_YEARS_TO_SCRAPE = [22]
 
-def _download_play_images(output_dir: str, playbooks: List[Playbook]) -> List[Playbook]:
-    '''Download play images to local for all plays in specified playbook, 
-    return playbook with image_local_path populated.
-    '''
-
-    def download_image(url: str, local_path: str, quiet: bool = False) -> None:
+def _download_image(url: str, local_path: str, quiet: bool = False) -> None:
         with open(local_path, 'wb') as f:
             response = requests.get(url, stream=True)
             response.raise_for_status()
@@ -31,28 +25,56 @@ def _download_play_images(output_dir: str, playbooks: List[Playbook]) -> List[Pl
         if not quiet:
             glog.info(f'downloaded {url} to {local_path}.')
 
-    glog.info(f'attempting to download play images for {len(playbooks)} playbooks to {output_dir}...')
+
+def _download_play_images(playbook_dir: str, playbook: Playbook) -> Playbook:
+    '''Download play images to local for all plays in specified playbook, 
+    return playbook with image_local_path populated.
+    '''
+
+    glog.info(f'attempting to download playbook {playbook.title()} ({len(playbook.plays)} plays) to {playbook_dir}..')
 
     downloaded_play_images = 0
-    pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
-    for playbook in playbooks:
-        playbook_dir = os.path.join(output_dir, f'{playbook.madden_year}-{playbook.id}')
-        pathlib.Path(playbook_dir).mkdir(parents=True, exist_ok=True)
-        for play in playbook.plays:
-            image_ext = os.path.splitext(play.image_url)[1]
-            play_filename = f'{play.formation.id}-{play.id}'
-            if image_ext:
-                play_filename += image_ext # image_ext includes '.': .<ext>
-            play_filepath = os.path.join(playbook_dir, play_filename)
-            download_image(url=play.image_url, local_path=play_filepath)
-            play.image_local_path = play_filepath
-            downloaded_play_images += 1
-    glog.info(f'downloaded {downloaded_play_images} play images from {len(playbooks)} playbooks to {output_dir}')
-    return playbooks
+    pathlib.Path(playbook_dir).mkdir(parents=True, exist_ok=True)
+    play_images_dir = path.join(playbook_dir, constants.PLAY_IMAGES_SUBDIR)
+    pathlib.Path(play_images_dir).mkdir(parents=True, exist_ok=True)
 
-def scrape():
-    '''For now just write plays to csv & download play images locally.'''
+    for play in playbook.plays:
+        image_ext = path.splitext(play.image_url)[1]
+        play_filename = f'{play.formation.id}-{play.id}'
+        
+        if image_ext:
+            play_filename += image_ext # image_ext includes '.': .<ext>
 
-    playbooks = huddle_gg.scrape_playbooks(MADDEN_YEARS_TO_SCRAPE)
-    playbooks = _download_play_images(output_dir=constants.PLAYBOOK_IMAGES_DIR, playbooks=playbooks)
-    Playbook.write_playbooks_to_json(filepath=constants.SCRAPED_PLAYBOOK_PATH, playbooks=playbooks)
+        play_filepath = path.join(play_images_dir, play_filename)
+        _download_image(url=play.image_url, local_path=play_filepath)
+        
+        play.image_local_path = play_filepath
+        downloaded_play_images += 1
+
+    glog.info(f'..downloaded {downloaded_play_images} play images to {play_images_dir}')
+    return playbook
+
+
+def scrape(
+    madden_year: int,
+    playbook_id: int,
+    formation_id: int
+) -> Playbook:
+    '''Downloads plays to local json and saves images.
+    
+    Args:
+        madden_year: madden playbook year to scrape
+        playbook_id: huddle_gg playbook_id to scrape
+        formation_id: huddle_gg formation_id to scrape
+    '''
+
+    playbook = huddle_gg.scrape_playbook(
+        madden_year=madden_year,
+        playbook_id=playbook_id,
+        formation_id=formation_id
+    )
+
+    playbook_dir = path.join(constants.PLAYBOOKS_BASE_DIR, f'{playbook.madden_year}-{playbook.id}')
+
+    playbook = _download_play_images(playbook_dir=playbook_dir, playbook=playbook)
+    playbook.write_to_json(filepath=path.join(playbook_dir, constants.PLAYBOOK_DATA_FILENAME))

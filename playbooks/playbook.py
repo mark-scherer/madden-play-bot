@@ -8,11 +8,11 @@ from typing import List, Dict, Any
 from enum import Enum
 from dataclasses import dataclass
 import json
-sys.path.append(path.join(path.dirname(__file__), '..', 'plays')) # upwards relative imports are hacky
+sys.path.append(path.join(path.dirname(__file__), '..')) # upwards relative imports are hacky
 
 import glog
 
-from play import Play
+from plays.play import Play
 
 
 class PlaybookType(Enum):
@@ -29,6 +29,9 @@ class Playbook:
     madden_year: int = None
     plays: List[Play] = None
 
+    def title(self) -> str:
+        return f'{self.name} {self.type.lower()} ({self.madden_year}-{self.id})'
+    
     def to_dict(self) -> Dict[str, Any]:
         return {
             'playbook_id': self.id,
@@ -50,13 +53,12 @@ class Playbook:
         )
     
 
-    @staticmethod
-    def write_playbooks_to_json(filepath: str, playbooks: List['Playbook']) -> None:
-        '''Write list of playbooks to json.'''
-        playbooks_dict = [pb.to_dict() for pb in playbooks]
+    def write_to_json(self, filepath: str) -> None:
+        '''Write playbook to json.'''
+
         with open(filepath, 'w') as f:
-            f.write(json.dumps(playbooks_dict))
-        glog.info(f'wrote {len(playbooks)} playbooks to {filepath}')
+            f.write(json.dumps(self.to_dict()))
+        glog.info(f'..wrote {self.title()} playbook to {filepath}')
 
     @staticmethod
     def read_playbooks_from_json(filepath: str) -> List['Playbook']:
