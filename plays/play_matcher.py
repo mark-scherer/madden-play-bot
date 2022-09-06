@@ -4,10 +4,12 @@ import sys
 from os import path
 from typing import List, NamedTuple
 sys.path.append(path.join(path.dirname(__file__))) # relative imports are weird
+sys.path.append(path.join(path.dirname(__file__), '..')) # upwards relative imports are hacky
 
 import glog
 
 from play import Play
+import visualization_utils as vis_utils
 
 
 class PlayMatch(NamedTuple):
@@ -20,7 +22,7 @@ class PlayMatch(NamedTuple):
 def match_play(play: Play, possible_matches: List[Play]) -> List[PlayMatch]:
     '''Determine match score for play against all possible_matches.'''
     
-    
+    vis_utils.show_plays([play] + possible_matches[0:3])
     
     
     return [PlayMatch(

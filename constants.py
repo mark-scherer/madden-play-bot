@@ -32,3 +32,10 @@ SIDELINE_MASK = {
     'min': [250, 250, 250],
     'max': [255, 255, 255]
 }
+
+FIELD_WIDTH_YARDS = 160/3
+
+PLAY_IMAGE_BALL_LOCATION_WIDTH_FRAC = 0.5
+PLAY_IMAGE_BALL_LOCATION_HEIGHT_FRAC = 0.4
+
+PLAY_IMAGE_ROUTE_SCALE = 3  # route points / yard in parsed play_images

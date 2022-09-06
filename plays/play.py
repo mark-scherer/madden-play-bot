@@ -47,7 +47,7 @@ class Route:
     @staticmethod
     def parse(obj: Dict) -> 'Route':
         return Route(
-            points = obj['route_points']
+            points = [Point(x=pt[0], y=pt[1]) for pt in obj['route_points']]
         )
 
 

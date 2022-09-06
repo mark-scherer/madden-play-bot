@@ -3,6 +3,7 @@
 import sys
 from os import path
 from typing import List, Tuple
+import copy
 sys.path.append(path.join(path.dirname(__file__), '..')) # upwards relative imports are hacky
 sys.path.append(path.join(path.dirname(__file__), '..')) # upwards relative imports are hacky
 
@@ -144,14 +145,18 @@ def crop_image(input: np.array, crop_fracs: Tuple[float, float, float, float]) -
 def parse_routes_from_masks(masks: List[np.array]) -> Tuple[List[Route], List[np.array]]:
     '''Given a list of cleaned masks parse into individual routes.
     
+    Args:
+        masks: list of binary masks to parse routes from
+
     Return:
         1. list of routes
         2. list of debug images
     '''
 
-    MIN_ROUTE_POINTS = 10  # minimum pixels to parse a route
+    MIN_ROUTE_POINTS = 0  # minimum pixels to parse a route
 
     assert len(masks) > 0
+    masks = list(masks)
     mask_shape = masks[0].shape
 
     debug_images = []
@@ -179,6 +184,7 @@ def parse_routes_from_masks(masks: List[np.array]) -> Tuple[List[Route], List[np
             if len(route_points) < MIN_ROUTE_POINTS:
                 continue
 
+            # Create skeletons debug image
             colorized_skeleton = cv2.cvtColor(skeletonized, cv2.COLOR_GRAY2RGB)
             colorized_skeleton[:,:,0] = np.multiply(colorized_skeleton[:,:,0], debug_color[0]/255)
             colorized_skeleton[:,:,1] = np.multiply(colorized_skeleton[:,:,1], debug_color[1]/255)
@@ -192,3 +198,86 @@ def parse_routes_from_masks(masks: List[np.array]) -> Tuple[List[Route], List[np
     debug_images.append({'title': 'skeletons', 'img': skeletons_image})
     
     return (routes, debug_images)
+
+
+def scale_routes(raw_routes: List[Route], ball_location: Point, field_scale: float) -> List[Route]:
+    '''Convert routes from pixel coordinates to scaled route_coordinates.'''
+    scaled_routes = []
+    for raw_route in raw_routes:
+        scaled_points = []
+        for raw_point in raw_route.points:
+            # convert to ball-centric coordinates
+            x = raw_point.x - ball_location.x
+            y = raw_point.y - ball_location.y
+
+            # scale to yards
+            x /= field_scale
+            y /= field_scale
+
+            # flip y (in pixel coordinates, y=0 at top of screen)
+            y *= -1
+
+            scaled_points.append(Point(x=x, y=y))
+        scaled_routes.append(Route(
+            points=scaled_points
+        ))
+    return scaled_routes
+
+
+def sample_route_points(route: Route, route_scale: float) -> Tuple[Route, List[np.array]]:
+    '''Sample points in route to density specified by route_scale.
+    
+    Args:
+        routes: route to sample
+        route_scale: desired route point density (route points / yard)
+
+    Note: input routes must already be scaled properly.
+    '''
+    
+    # cutoff all content beyond these thresholds
+    ROUTE_MASK_DOWNFIELD_YARDS = 50
+    ROUTE_MASK_BACKFIELD_YARDS = 15
+
+    def _route_point_to_ij(route_point: Point) -> Tuple[float, float]:
+        '''Convert point in route space to pixel coordinates.'''
+
+        i = route_point.x + (constants.FIELD_WIDTH_YARDS/2)
+        j = ROUTE_MASK_DOWNFIELD_YARDS - route_point.y
+
+        return (i, j)
+
+    def _ij_to_route_point(i: float, j: float) -> Point:
+        '''Convert point in pixel coordinates to route point.'''
+        x = i - (constants.FIELD_WIDTH_YARDS/2)
+        y = ROUTE_MASK_DOWNFIELD_YARDS - j
+
+        return Point(x=x, y=y)
+
+    debug_images = []
+
+    # Setup binary route mask with desired resolution
+    route_mask_width = int(constants.FIELD_WIDTH_YARDS * route_scale) + 1
+    route_mask_height = int((ROUTE_MASK_DOWNFIELD_YARDS + ROUTE_MASK_BACKFIELD_YARDS) * route_scale) + 1
+    route_mask = np.zeros((route_mask_height,route_mask_width,1), np.uint8)
+
+    # Add points to mask, naturally sampling
+    for point in route.points:
+        unscaled_i, unscaled_j = _route_point_to_ij(point)
+        scaled_i = int(unscaled_i * route_scale)
+        scaled_j = int(unscaled_j * route_scale)
+        
+        route_mask[scaled_j, scaled_i] = 255
+    debug_images.append({'title': 'route_mask', 'img': route_mask})
+
+    sample_route_pixels = np.argwhere(route_mask == 255)
+    sampled_route = copy.deepcopy(route)
+    sampled_points = []
+    for pixel in sample_route_pixels:
+        rescaled_i = pixel[1] / route_scale
+        rescaled_j = pixel[0] / route_scale
+        sampled_points.append(_ij_to_route_point(rescaled_i, rescaled_j))
+
+    sampled_route.points = sampled_points
+    
+    return (sampled_route, debug_images)
+    
