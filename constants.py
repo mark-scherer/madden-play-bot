@@ -12,6 +12,7 @@ SCRATCH_DIR = path.join(BASE_DIR, 'scratch')
 PLAYBOOKS_BASE_DIR = path.join(BASE_DIR, 'playbooks')
 PLAY_IMAGES_SUBDIR = 'images'
 
+PLAYMASK_FILENAME = 'playmask.png'
 SCRAPED_PLAYBOOK_DATA_FILENAME = 'scraped_playbook.json'
 PARSED_PLAYBOOK_DATA_FILENAME = 'parsed_playbook.json'
 
@@ -38,4 +39,4 @@ FIELD_WIDTH_YARDS = 160/3
 PLAY_IMAGE_BALL_LOCATION_WIDTH_FRAC = 0.5
 PLAY_IMAGE_BALL_LOCATION_HEIGHT_FRAC = 0.4
 
-PLAY_IMAGE_ROUTE_SCALE = 3  # route points / yard in parsed play_images
+PLAYMASK_SCALE = 3  # pixels / yard in parsed play data

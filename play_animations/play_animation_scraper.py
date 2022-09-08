@@ -47,12 +47,12 @@ def scrape(url: str) -> PlayAnimation:
         parsed_path = parsed_path[0:-1]
     media_id = path.basename(parsed_path)
     
-    media_dir = path.join(constants.PLAY_ANIMATIONS_DIR, media_id)
-    media_path = path.join(media_dir, constants.MEDIA_FILENAME)
-    frame_path = path.join(media_dir, constants.FRAME_FILENAME)
+    play_animation_dir = path.join(constants.PLAY_ANIMATIONS_DIR, media_id)
+    media_path = path.join(play_animation_dir, constants.MEDIA_FILENAME)
+    frame_path = path.join(play_animation_dir, constants.FRAME_FILENAME)
 
     pathlib.Path(constants.SCRATCH_DIR).mkdir(parents=True, exist_ok=True)
-    pathlib.Path(media_dir).mkdir(parents=True, exist_ok=True)
+    pathlib.Path(play_animation_dir).mkdir(parents=True, exist_ok=True)
 
     if not path.isfile(media_path):
         run_youtube_dl(url=url, output_path=media_path)
@@ -66,7 +66,8 @@ def scrape(url: str) -> PlayAnimation:
 
     return PlayAnimation(
         url=url,
-        media_dir=media_dir
+        id=media_id,
+        dir=play_animation_dir
     )
 
     

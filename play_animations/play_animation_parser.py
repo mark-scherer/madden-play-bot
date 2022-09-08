@@ -19,7 +19,7 @@ import visualization_utils as vis_utils
 import constants
 import play_animation_preprocessor as preprocessor
 from play_animation import PlayAnimation
-from plays.play import Play, Formation, Route, Point
+from plays.play import Play, Formation, PlayMask, Point
 
 SCOREBOARD_COLORS_CROP_WIDTH = 0.5
 
@@ -307,7 +307,7 @@ def parse(scraped_play_animation: PlayAnimation) -> PlayAnimation:
     '''Parse play out of a scraped play animation'''
     debug_images = []
 
-    input_frame_path = path.join(scraped_play_animation.media_dir, constants.FRAME_FILENAME)
+    input_frame_path = path.join(scraped_play_animation.dir, constants.FRAME_FILENAME)
     input_frame = cv2.imread(input_frame_path)
     display_frame = cv2.cvtColor(input_frame, cv2.COLOR_BGR2RGB) 
     # debug_images = [{
@@ -335,26 +335,28 @@ def parse(scraped_play_animation: PlayAnimation) -> PlayAnimation:
     )
     debug_images += route_masks_debug_images
 
-    routes, routes_debug_images = image_utils.parse_routes_from_masks(routes_masks)
-    glog.info(f'parsed {len(routes)} routes')
-    debug_images += routes_debug_images
+    playmask_path = path.join(scraped_play_animation.dir, constants.PLAYMASK_FILENAME)
+    playmask, playmask_debug_images = image_utils.parse_playmask_from_masks(
+        masks=routes_masks,
+        ball_location=ball_location,
+        playmask_path=playmask_path
+    )
+    debug_images += playmask_debug_images
 
-    scaled_routes = image_utils.scale_routes(raw_routes=routes, ball_location=ball_location, field_scale=field_scale)
-    sampled_routes = [
-        image_utils.sample_route_points(route=route, route_scale=constants.PLAY_IMAGE_ROUTE_SCALE)[0]
-        for route in scaled_routes
-    ]
+    sampled_playmask = PlayMask.resample(input_playmask=playmask, scale=constants.PLAYMASK_SCALE)
+    debug_images.append({'title': 'sampled playmask', 'img': sampled_playmask.mask})
 
     parsed_play = Play(
-        id=-1,
+        id=scraped_play_animation.id,
         name='unknown',
         formation=Formation(
             id=-1,
             name='unknown',
             family=-1
         ),
-        routes=sampled_routes
+        playmask=sampled_playmask
     )
 
-    # vis_utils.show_plays([parsed_play])
+    # vis_utils.display_images(debug_images)
+    vis_utils.show_plays([parsed_play])
     return parsed_play

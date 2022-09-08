@@ -7,4 +7,5 @@ from dataclasses import dataclass
 @dataclass
 class PlayAnimation:
     url: str
-    media_dir: str
+    id: str
+    dir: str

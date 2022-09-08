@@ -4,6 +4,7 @@ import sys
 from os import path
 from typing import List, Dict, Any, Tuple
 import math
+sys.path.append(path.join(path.dirname(__file__))) # sometimes relative imports are weird
 sys.path.append(path.join(path.dirname(__file__), '..')) # upwards relative imports are hacky
 
 from matplotlib import pyplot as plt
@@ -11,6 +12,7 @@ from matplotlib import patches
 
 import constants
 from plays.play import Play
+import image_utils
 
 
 def _get_subplot_dims(figure_count: int) -> Tuple[int, int]:
@@ -73,7 +75,8 @@ def show_plays(plays: List[Play]) -> None:
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)
 
-        total_points = sum([len(route.points) for route in play.routes])
+        play_pixels = image_utils.get_mask_white_pixels(mask=play.playmask.mask)
+        total_points = play_pixels.size
         ax.set_title(f'{play.title()} (points: {total_points})')
 
         # Draw yard lines
@@ -120,9 +123,9 @@ def show_plays(plays: List[Play]) -> None:
         ax.plot(0, 0, 's', color=PLAY_COLOR, ms=BALL_SIZE_PTS)
 
         # Draw routes
-        for route in play.routes:
-            pt_x = [pt.x for pt in route.points]
-            pt_y = [pt.y for pt in route.points]
-            ax.plot(pt_x, pt_y, color=PLAY_COLOR, marker='.', linestyle='none')
+        play_points = image_utils.playmask_to_ball_coords(play.playmask)
+        pt_x = [pt[0] for pt in play_points]
+        pt_y = [pt[1] for pt in play_points]
+        ax.plot(pt_x, pt_y, color=PLAY_COLOR, marker='.', linestyle='none')
 
     plt.show()

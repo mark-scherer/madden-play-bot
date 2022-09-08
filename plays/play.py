@@ -1,8 +1,15 @@
 '''Play dataclass'''
 
-from typing import List, Dict, Any, NamedTuple
+import sys
+from os import path
+from typing import List, Dict, Any, NamedTuple, Tuple, Optional
 from enum import Enum
 from dataclasses import dataclass, field
+sys.path.append(path.join(path.dirname(__file__), '..')) # upwards relative imports are hacky
+
+import numpy as np
+import cv2
+import constants
 
 
 class FormationFamily(Enum):
@@ -30,25 +37,83 @@ class Point(NamedTuple):
 
 
 @dataclass
-class Route:
-    points: List[Point] = field(default_factory=list) # must do this to default = []
+class PlayMask:
+    '''Dataclass for storing play data.
+    
+    Masks should have play oriented right side up but (0, 0) in pixel coordinates at the top-left, meaning:
+    - downfield and the y axis are inverted and offset by ball_location.y
 
-    def summary(self) -> Dict[str, Any]:
-        '''Generate summary dict.'''
-        return {
-            'point_count': len(self.points)
-        }
+    Assumes x=0 is the left sideline, x=xmax is the right sideline
+    '''
 
-    def to_dict(self) -> Dict[str, Any]:
+    ball_location: Point  # pixel coords of the ball in the image
+    mask_local_path: str
+    mask: Optional[np.array] = None
+
+    def to_dict(self) -> Dict[str, str]:
         return {
-            'route_points': [(point.x, point.y) for point in self.points]
+            'playmask_ball_location': f'{self.ball_location.x},{self.ball_location.y}',
+            'playmask_local_path': self.mask_local_path
         }
 
     @staticmethod
-    def parse(obj: Dict) -> 'Route':
-        return Route(
-            points = [Point(x=pt[0], y=pt[1]) for pt in obj['route_points']]
+    def parse(obj: Dict) -> 'PlayMask':
+        ball_location_cords = obj['playmask_ball_location'].split(',')
+        mask_local_path = obj['playmask_local_path']
+        return PlayMask(
+            ball_location=Point(x=ball_location_cords[0], y=ball_location_cords[1]),
+            mask_local_path=mask_local_path,
+            mask=cv2.imread(mask_local_path)
         )
+
+    def scale(self) -> float:
+        '''Get scale of PlayMask in pixels/yard'''
+        _, width = self.mask.shape
+        return width / constants.FIELD_WIDTH_YARDS
+
+
+    @staticmethod
+    def save_mask(mask: np.array, filepath: str) -> None:
+        cv2.imwrite(filename=filepath, img=mask)
+
+    # TODO: might want to skeletonize resized mask - produces a lot of adjacent redundant pixels
+        # This just makes later processing less efficient
+    @staticmethod
+    def resample(input_playmask: 'PlayMask', scale: float) -> 'PlayMask':
+        '''Resample specified playmask to desired scale and return updated mask.
+        
+        Args:
+            input_playmask: PlayMask to sample, will not be altered
+            scale: scale of desired PlayMask in pixels/yard
+        '''
+        current_mask = input_playmask.mask
+        current_height, current_width = current_mask.shape
+        current_scale = input_playmask.scale()
+
+        scale_multiplier = scale / current_scale
+        new_width = int(scale_multiplier * current_width)
+        new_height = int(current_height * scale_multiplier)
+
+        interpolation = cv2.INTER_AREA if scale_multiplier < 1 else cv2.INTER_LINEAR
+        new_mask = cv2.resize(
+            src=current_mask, 
+            dsize=(new_width, new_height),
+            interpolation=interpolation
+        )
+
+        new_mask_local_path = input_playmask.mask_local_path
+        new_ball_location = Point(
+            x=input_playmask.ball_location.x * scale_multiplier,
+            y=input_playmask.ball_location.y * scale_multiplier,
+        )
+        PlayMask.save_mask(mask=new_mask, filepath=new_mask_local_path)
+
+        return PlayMask(
+            ball_location=new_ball_location,
+            mask_local_path=new_mask_local_path,
+            mask=new_mask
+        )
+
 
 
 @dataclass
@@ -94,7 +159,7 @@ class Play:
     image_local_path: str = None
     formation: Formation = None
     type: PlayType = None
-    routes: List[Route] = field(default_factory=list) # must do this to default = []
+    playmask: Optional[PlayMask] = None
 
     def title(self) -> str:
         '''Generate short title string.'''
@@ -108,8 +173,6 @@ class Play:
             'name': self.name,
             'id': self.id,
             'type': self.type,
-            'route_count': len(self.routes),
-            'routes': [route.summary() for route in self.routes]
         }
 
     def to_dict(self) -> Dict[str, Any]:
@@ -120,7 +183,7 @@ class Play:
             'play_image_local_path': self.image_local_path,
             'play_formation': self.formation.to_dict(),
             'play_type': str(self.type) if self.type else None,
-            'play_routes': [route.to_dict() for route in self.routes]
+            'play_playmask': self.playmask.to_dict() if self.playmask else None
         }
 
     @staticmethod
@@ -133,5 +196,5 @@ class Play:
             image_local_path = obj['play_image_local_path'],
             formation = Formation.parse(obj['play_formation']),
             type = PlayType[type_str] if type_str else None,
-            routes = [Route.parse(route) for route in obj['play_routes']]
+            playmask = PlayMask.parse(obj['play_playmask']) if obj['play_playmask'] else None
         )

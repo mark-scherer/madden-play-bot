@@ -125,7 +125,7 @@ def main():
     debug_images = []
     
     scraped_play_animation = play_animation_scraper.scrape(url=SOURCE_MEDIA_URL)
-    input_frame_path = path.join(scraped_play_animation.media_dir, constants.FRAME_FILENAME)
+    input_frame_path = path.join(scraped_play_animation.dir, constants.FRAME_FILENAME)
     input_frame = cv2.imread(input_frame_path)
     display_frame = cv2.cvtColor(input_frame, cv2.COLOR_BGR2RGB)
     # debug_images.append({'title': 'input frame', 'img': display_frame})

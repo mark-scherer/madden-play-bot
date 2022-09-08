@@ -21,7 +21,7 @@ from utils import utils
 from utils import visualization_utils as vis_utils
 from utils import image_utils
 import constants
-from plays.play import Play, Route, Point
+from plays.play import Play, PlayMask, Point
 from playbooks.playbook import Playbook
 
 # For vizualizing skeltons in debug images.
@@ -79,34 +79,34 @@ def _parse_play_image(
             closed_mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, CLOSING_KERNERL)
             masks[feature_type] = closed_mask
 
-        parsed_routes, routes_debug_images = image_utils.parse_routes_from_masks(
-            masks=masks.values()
-        )
-        debug_images += routes_debug_images
-
         ball_location = Point(
             x=width * constants.PLAY_IMAGE_BALL_LOCATION_WIDTH_FRAC,
             y=width * constants.PLAY_IMAGE_BALL_LOCATION_HEIGHT_FRAC,
         )
-        field_scale = width / constants.FIELD_WIDTH_YARDS
 
-        scaled_routes = image_utils.scale_routes(
-            raw_routes=parsed_routes,
+        play_dir = path.dirname(play.image_local_path)
+        play_filename = path.splitext(path.basename(play.image_local_path))[0]
+        playmask_path = path.join(play_dir, f'{play_filename}_{constants.PLAYMASK_FILENAME}')
+        parsed_playmask, playmask_debug_images = image_utils.parse_playmask_from_masks(
+            masks=masks.values(),
             ball_location=ball_location,
-            field_scale=field_scale
+            playmask_path=playmask_path
         )
+        debug_images += playmask_debug_images
 
-        sampled_routes = []
-        for scaled_route in scaled_routes:
-            sampled_route, sample_route_debug_images = image_utils.sample_route_points(
-                route=scaled_route,
-                route_scale=constants.PLAY_IMAGE_ROUTE_SCALE
-            )
-            sampled_routes.append(sampled_route)
-            debug_images += sample_route_debug_images
+        # sampled_routes = []
+        # for scaled_route in scaled_routes:
+        #     sampled_route, sample_route_debug_images = image_utils.sample_route_points(
+        #         route=scaled_route,
+        #         route_scale=constants.PLAYMASK_SCALE
+        #     )
+        #     sampled_routes.append(sampled_route)
+        #     debug_images += sample_route_debug_images
+
+        sampled_playmask = PlayMask.resample(parsed_playmask, constants.PLAYMASK_SCALE)
 
         # parsed_play.type = # need to determine play type
-        parsed_play.routes = sampled_routes
+        parsed_play.playmask = sampled_playmask
 
         if verbose:
             glog.info(f'..finished parsing {play.title()} in {utils.elapsed_ms(parse_start)}ms: {json.dumps(parsed_play.summary())}')

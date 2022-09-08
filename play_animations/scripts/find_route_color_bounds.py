@@ -60,7 +60,7 @@ ROUTE_HSV_MAX = [0.37, 0.60, 0.66]
 
 def load_and_preprocess(media_url: str) -> np.array:
     scraped_play_animation = play_animation_scraper.scrape(url=media_url)
-    input_frame_path = path.join(scraped_play_animation.media_dir, constants.FRAME_FILENAME)
+    input_frame_path = path.join(scraped_play_animation.dir, constants.FRAME_FILENAME)
     input_frame = cv2.imread(input_frame_path)
     display_frame = cv2.cvtColor(input_frame, cv2.COLOR_BGR2RGB)
 
