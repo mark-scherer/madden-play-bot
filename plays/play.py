@@ -20,10 +20,11 @@ class FormationFamily(Enum):
     GUN = 5
     PISTOL = 7
     HAIL_MARY = 8
-    GOAL_LINE = 9
-    SPECIAL_TEAMS = 10
-    KICKOFF = 11
-    SAFETY_PUNT = 12
+    WILDCAT = 9
+    GOAL_LINE = 10
+    SPECIAL_TEAMS = 11
+    KICKOFF = 12
+    SAFETY_PUNT = 13
 
 
 class PlayType(Enum):
@@ -63,7 +64,7 @@ class PlayMask:
         return PlayMask(
             ball_location=Point(x=ball_location_cords[0], y=ball_location_cords[1]),
             mask_local_path=mask_local_path,
-            mask=cv2.imread(mask_local_path)
+            mask=cv2.imread(mask_local_path, cv2.IMREAD_GRAYSCALE)
         )
 
     def scale(self) -> float:
@@ -76,8 +77,7 @@ class PlayMask:
     def save_mask(mask: np.array, filepath: str) -> None:
         cv2.imwrite(filename=filepath, img=mask)
 
-    # TODO: might want to skeletonize resized mask - produces a lot of adjacent redundant pixels
-        # This just makes later processing less efficient
+
     @staticmethod
     def resample(input_playmask: 'PlayMask', scale: float) -> 'PlayMask':
         '''Resample specified playmask to desired scale and return updated mask.
@@ -92,9 +92,31 @@ class PlayMask:
 
         scale_multiplier = scale / current_scale
         new_width = int(scale_multiplier * current_width)
-        new_height = int(current_height * scale_multiplier)
+        new_height = int(scale_multiplier * current_height)
 
-        interpolation = cv2.INTER_AREA if scale_multiplier < 1 else cv2.INTER_LINEAR
+        return PlayMask.resize(
+            input_playmask=input_playmask,
+            new_width=new_width,
+            new_height=new_height
+        )
+
+
+    # TODO: might want to skeletonize resized mask - produces a lot of adjacent redundant pixels
+        # This just makes later processing less efficient
+    @staticmethod
+    def resize(input_playmask: 'PlayMask', new_width: int, new_height: int) -> 'PlayMask':
+        '''Resizes PlayMask to desired dims, returning copy.'''
+        
+        current_mask = input_playmask.mask
+        current_height, current_width = current_mask.shape
+        width_multipler = round(new_width / current_width, 3)
+        height_multipler = round(new_height / current_height, 3)
+        # assert width_multipler == height_multipler, \
+        #     'Width & height not resized equally: ' \
+        #     f'width: {current_width} -> {new_width} ({width_multipler}), ' \
+        #     f'width: {current_height} -> {new_height} ({height_multipler})'
+
+        interpolation = cv2.INTER_AREA if new_width < current_width else cv2.INTER_LINEAR
         new_mask = cv2.resize(
             src=current_mask, 
             dsize=(new_width, new_height),
@@ -103,8 +125,8 @@ class PlayMask:
 
         new_mask_local_path = input_playmask.mask_local_path
         new_ball_location = Point(
-            x=input_playmask.ball_location.x * scale_multiplier,
-            y=input_playmask.ball_location.y * scale_multiplier,
+            x=input_playmask.ball_location.x * width_multipler,
+            y=input_playmask.ball_location.y * height_multipler,
         )
         PlayMask.save_mask(mask=new_mask, filepath=new_mask_local_path)
 

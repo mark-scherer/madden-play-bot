@@ -9,7 +9,7 @@ sys.path.append(path.join(path.dirname(__file__), '..')) # upwards relative impo
 
 import playbooks_parser
 
-PLAYBOOK_DIR = '/tmp/madden-play-bot/playbooks/22-213/'
+PLAYBOOK_DIR = '/tmp/madden-play-bot/playbooks/22-214/'
 
 def main():
     playbooks_parser.parse(playbook_dir=PLAYBOOK_DIR)

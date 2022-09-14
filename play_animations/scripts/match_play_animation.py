@@ -12,12 +12,14 @@ import play_animation_parser
 from plays import play_matcher
 from playbooks.playbook import Playbook
 
-PLAYBOOK_JSON = '/tmp/madden-play-bot/playbooks/22-213/parsed_playbook.json'
+PLAYBOOK_JSON = '/tmp/madden-play-bot/playbooks/22-214/parsed_playbook.json'
 
 
 # seahawks at steelers (offense)
 TEST_PLAY_ANIMATION_URL = 'https://twitter.com/NextGenStats/status/1559573875255431169'
 
+# rams (offense) at bengals
+# TEST_PLAY_ANIMATION_URL = 'https://twitter.com/NextGenStats/status/1493714806162878466'
 
 def main():
     # Load playbook
@@ -35,6 +37,6 @@ def main():
     matched_plays = [(play_map[match.play_2_id], match.score) for match in match_result]
     matched_plays = sorted(matched_plays, key=lambda match: match[1])
 
-    glog.info(f'Got matches for {parsed_play.title()}: {[f"{match[0].title()}: {match[1]}" for match in matched_plays[0:3]]}')
+    # glog.info(f'Got matches for {parsed_play.title()}: {[f"{match[0].title()}: {match[1]}" for match in matched_plays[0:3]]}')
 
 main()

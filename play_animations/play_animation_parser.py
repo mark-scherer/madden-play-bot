@@ -358,5 +358,5 @@ def parse(scraped_play_animation: PlayAnimation) -> PlayAnimation:
     )
 
     # vis_utils.display_images(debug_images)
-    vis_utils.show_plays([parsed_play])
+    # vis_utils.show_plays([parsed_play])
     return parsed_play

@@ -12,8 +12,8 @@ import playbooks_scraper
 
 
 MADDEN_YEAR = 22
-PLAYBOOK_ID = 213  # seahawks offense
-FORMATION_ID = 6155  # gun doubles offset
+PLAYBOOK_ID = 214  # steelers offense
+FORMATION_ID = 4669  # gun spread y slot weak
 
 
 def main():
