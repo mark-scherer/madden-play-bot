@@ -25,10 +25,6 @@ ROUTE_COLORS = [
     [255,255,255],
 ]
 
-# cutoff all content beyond these thresholds
-PLAY_MASK_DOWNFIELD_YARDS = 50
-PLAY_MASK_BACKFIELD_YARDS = 15
-
 
 def img_threshold_by_range(img: np.array, min: List, max: List, reverse: bool = True) -> np.array:
     '''Given input image and list of mins and max pixel values, return thresholded image.

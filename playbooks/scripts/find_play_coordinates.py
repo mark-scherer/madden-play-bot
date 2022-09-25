@@ -11,8 +11,9 @@ import constants
 import utils.visualization_utils as vis_utils
 
 
-PLAYBOOK_DIR = '/tmp/madden-play-bot/playbooks/22-213/'
-PLAYS_TO_SHOW = 16
+PLAYBOOK_DIR = '/tmp/madden-play-bot/playbooks/22-214/'
+FORMATION_ID = 8412
+PLAYS_TO_SHOW = 1
 BALL_LOCATION_RADIUS = 10
 
 
@@ -22,8 +23,13 @@ def main():
     filenames = os.listdir(play_images_dir)
     
     play_images = []
-    for filename in filenames[0:PLAYS_TO_SHOW]:
+    for filename in filenames:
         play_image_filepath = os.path.join(play_images_dir, filename)
+
+        if FORMATION_ID is not None:
+            if f'{FORMATION_ID}-' not in play_image_filepath:
+                continue
+
         raw_play_image = cv2.imread(play_image_filepath)
 
         height, width, _ = raw_play_image.shape
@@ -43,7 +49,7 @@ def main():
         glog.info(f'{filename}: {height} x {width}')
 
 
-    vis_utils.display_images(play_images)
+    vis_utils.display_images(play_images[0:PLAYS_TO_SHOW])
     
 
 main()

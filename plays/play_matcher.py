@@ -55,10 +55,40 @@ def _blur_play(play: Play) -> Play:
     return result
 
 
-# @lru_cache(lambda mask: mask.mask_local_path)
-# def _sum_playmask(mask: np.array) -> int:
-#     '''Helper to enabling caching of mask sums.'''
-#     return cv2.sum(mask)
+def _generate_overlap_image(test_playmask: PlayMask, truth_playmask: PlayMask) -> np.array:
+    '''Generate overlap debug image from compared playmasks.'''
+
+    BALL_COLOR = [0, 255, 0]
+    BALL_RADIUS = 3
+
+    # Copy test_playmask as base image.
+    overlap_image = cv2.cvtColor(test_playmask.mask.copy(), cv2.COLOR_GRAY2RGB)
+    max_mask_value = np.amax(test_playmask.mask)
+    overlap_image *= int(255 / max_mask_value)
+
+    # Now draw LOS
+    test_los_y = test_playmask.ball_location.y
+    truth_los_y = test_playmask.ball_location.y
+    assert test_los_y == truth_los_y, \
+        f'test_los_y ({test_los_y}) and truth_los_y ({truth_los_y}) not equal'
+    overlap_image[test_los_y, :] = [0, 0, 255]
+
+    # Overlap truth_playmask in color
+    truth_play_pixels = image_utils.get_mask_white_pixels(truth_playmask.mask)
+    for pixel in truth_play_pixels:
+        overlap_image[pixel[1], pixel[0]] = [255, 0, 0]
+
+    # Now draw ball
+    cv2.circle(
+        img=overlap_image,
+        center=(int(test_playmask.ball_location.x), int(test_playmask.ball_location.y)),
+        radius=BALL_RADIUS, color=BALL_COLOR, thickness=-1)
+    cv2.circle(
+        img=overlap_image,
+        center=(int(truth_playmask.ball_location.x), int(truth_playmask.ball_location.y)),
+        radius=BALL_RADIUS, color=BALL_COLOR, thickness=-1)
+
+    return overlap_image
 
 
 def _play_overlap(test_play: Play, truth_play: Play) -> Tuple[float, List[np.array]]:
@@ -88,22 +118,16 @@ def _play_overlap(test_play: Play, truth_play: Play) -> Tuple[float, List[np.arr
     overlap_score = filtered_test_sum / test_sum
     glog.info(f'got match score for {test_play.title()} & {truth_play.title()}: {round(overlap_score, 3)} ({filtered_test_sum} / {test_sum})')
 
-    # Generate overlap image
-    overlap_image = cv2.cvtColor(test_playmask.copy(), cv2.COLOR_GRAY2RGB)
-    max_mask_value = np.amax(test_playmask)
-    overlap_image *= int(255 / max_mask_value)
-
-    truth_play_pixels = image_utils.get_mask_white_pixels(truth_playmask)
-    for pixel in truth_play_pixels:
-        overlap_image[pixel[1], pixel[0], 0] = 255
-        overlap_image[pixel[1], pixel[0], 1] = 0
-        overlap_image[pixel[1], pixel[0], 2] = 0
+    overlap_image = _generate_overlap_image(
+        test_playmask=test_play.playmask,
+        truth_playmask=truth_play.playmask
+    )
     debug_images.append({'title': f'{truth_play.title()}: {round(overlap_score, 3)}', 'img': overlap_image})
 
     return (overlap_score, debug_images)
 
 
-def match_play(play: Play, possible_matches: List[Play]) -> List[PlayMatch]:
+def match_play(play: Play, possible_matches: List[Play]) -> Tuple[List[PlayMatch], List[np.array]]:
     '''Determine match score for play against all possible_matches.'''
     debug_images = []
 
@@ -114,17 +138,18 @@ def match_play(play: Play, possible_matches: List[Play]) -> List[PlayMatch]:
         'img': play.playmask.mask
     })
     
+    # INSTEAD OF RESIZING make sure parsing samples correctly for both
     # Resize test play to truth_play size
-    truth_play_height, truth_play_width = possible_matches[0].playmask.mask.shape
-    resized_truth_play = copy.deepcopy(play)
-    resized_truth_play.playmask = PlayMask.resize(
-        input_playmask=resized_truth_play.playmask,
-        new_width=truth_play_width,
-        new_height=truth_play_height
-    )
+    # truth_play_height, truth_play_width = possible_matches[0].playmask.mask.shape
+    # resized_truth_play = copy.deepcopy(play)
+    # resized_truth_play.playmask = PlayMask.resize(
+    #     input_playmask=resized_truth_play.playmask,
+    #     new_width=truth_play_width,
+    #     new_height=truth_play_height
+    # )
 
     # Blur test play for fuzzier matching
-    blurred_test_play = _blur_play(play=resized_truth_play)
+    blurred_test_play = _blur_play(play=play)
     debug_images += [{'title': 'blurred test play', 'img': blurred_test_play.playmask.mask}]
     glog.info(f'blurred: {play.playmask.mask.shape} -> {blurred_test_play.playmask.mask.shape}')
 
@@ -144,10 +169,12 @@ def match_play(play: Play, possible_matches: List[Play]) -> List[PlayMatch]:
         debug_images += match_result.debug_images
         glog.info(f'match_result {i}: {round(match_result.score, 3)}: {match_result.truth_play_id}')
     
-    vis_utils.display_images(debug_images)
+    # vis_utils.display_images(debug_images)
 
     # return [PlayMatch(
     #     test_play_id=play.id,
     #     truth_play_id=other_play.id,
     #     score=0
     # ) for other_play in possible_matches]
+
+    return (None, debug_images)

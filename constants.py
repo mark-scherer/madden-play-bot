@@ -4,6 +4,8 @@ Constants for play animation scraping & parsing.
 
 from os import path
 
+import cv2
+
 ASSESTS_DIR = path.join(path.dirname(__file__), 'play_animations', 'assets')
 
 BASE_DIR = '/tmp/madden-play-bot/'
@@ -11,6 +13,7 @@ PLAY_ANIMATIONS_DIR = path.join(BASE_DIR, 'play_animations')
 SCRATCH_DIR = path.join(BASE_DIR, 'scratch')
 PLAYBOOKS_BASE_DIR = path.join(BASE_DIR, 'playbooks')
 PLAY_IMAGES_SUBDIR = 'images'
+FORMATIONS_DIR = path.join(BASE_DIR, 'formations')
 
 PLAYMASK_FILENAME = 'playmask.png'
 SCRAPED_PLAYBOOK_DATA_FILENAME = 'scraped_playbook.json'
@@ -35,8 +38,14 @@ SIDELINE_MASK = {
 }
 
 FIELD_WIDTH_YARDS = 160/3
+HASMARKS_INSIDE_WIDTH_YARDS = 18.6/3
 
 PLAY_IMAGE_BALL_LOCATION_WIDTH_FRAC = 0.5
 PLAY_IMAGE_BALL_LOCATION_HEIGHT_FRAC = 0.4
 
 PLAYMASK_SCALE = 3  # pixels / yard in parsed play data
+PLAYMASK_DOWNFIELD_YARDS = 40  # cutoff all content beyond these thresholds
+PLAYMASK_BACKFIELD_YARDS = 15
+
+DOWNSIZE_INTERPOLATION = cv2.INTER_AREA 
+UPSIZE_INTERPOLATION = cv2.INTER_LINEAR

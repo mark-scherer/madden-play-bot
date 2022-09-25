@@ -47,12 +47,9 @@ def display_images(images: List[Dict[str, Any]]) -> None:
 def show_plays(plays: List[Play]) -> None:
     '''Display plays in a popup.'''
 
-    PLAY_BACKFIELD_YARDS = 10
-    PLAY_DOWNFIELD_YARDS = 40
     YARDLINE_COLOR = 'lightgrey'
     YARDLINE_THICKNESS_PTS = 2
     SIDELINE_THICKNESS_YARDS = 2
-    HASMARKS_INSIDE_WIDTH_YARDS = 18.6/3
     HASHMARKS_LENGTH_YARDS = 2/3
     YARD_MARKS_CENTER_DISTANCE_TO_SIDELINE_YARDS = (12 + 9) / 2
 
@@ -61,8 +58,8 @@ def show_plays(plays: List[Play]) -> None:
 
     field_xmin = -1 * constants.FIELD_WIDTH_YARDS / 2
     field_xmax = constants.FIELD_WIDTH_YARDS / 2
-    field_ymin = -1*PLAY_BACKFIELD_YARDS
-    field_ymax = PLAY_DOWNFIELD_YARDS
+    field_ymin = -1*constants.PLAYMASK_BACKFIELD_YARDS
+    field_ymax = constants.PLAYMASK_DOWNFIELD_YARDS
 
     rows, cols = _get_subplot_dims(len(plays))
     fig, _ = plt.subplots(rows, cols)
@@ -101,7 +98,7 @@ def show_plays(plays: List[Play]) -> None:
         ax.add_patch(right_sideline)
 
         # Draw hashes
-        hashmarks_xmin = HASMARKS_INSIDE_WIDTH_YARDS/2
+        hashmarks_xmin = constants.HASMARKS_INSIDE_WIDTH_YARDS/2
         hashmarks_xmax = hashmarks_xmin + HASHMARKS_LENGTH_YARDS
         hashmarks_y = range(field_ymin, field_ymax + 1, 1)
         for y in hashmarks_y:

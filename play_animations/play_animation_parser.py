@@ -346,6 +346,16 @@ def parse(scraped_play_animation: PlayAnimation) -> PlayAnimation:
     sampled_playmask = PlayMask.resample(input_playmask=playmask, scale=constants.PLAYMASK_SCALE)
     debug_images.append({'title': 'sampled playmask', 'img': sampled_playmask.mask})
 
+    cropped_playmask = PlayMask.crop_field_vertically(input_playmask=sampled_playmask)
+    debug_images.append({'title': 'cropped playmask', 'img': cropped_playmask.mask})
+
+    centered_playmask = PlayMask.recenter_ball_horizontally(input_playmask=cropped_playmask, ball_x_frac=0.5)
+    debug_images.append({'title': 'centered playmask', 'img': centered_playmask.mask})
+
+    # This does not work for some reason
+    # reskeletonized = PlayMask.reskeletonize(input_playmask=centered_playmask)
+    # debug_images.append({'title': 'reskeletonized', 'img': reskeletonized.mask})
+
     parsed_play = Play(
         id=scraped_play_animation.id,
         name='unknown',
@@ -354,7 +364,7 @@ def parse(scraped_play_animation: PlayAnimation) -> PlayAnimation:
             name='unknown',
             family=-1
         ),
-        playmask=sampled_playmask
+        playmask=centered_playmask
     )
 
     # vis_utils.display_images(debug_images)
