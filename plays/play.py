@@ -354,6 +354,40 @@ class PlayMask:
             mask=new_mask
         )
 
+    
+    def apply_backfield_vertical_scaling(input_playmask: 'PlayMask', backfield_scaling_factor: float) -> 'PlayMask':
+        '''Apply vertical scaling correction to just the backfield.'''
+        
+        current_mask = input_playmask.mask
+        current_height, width = current_mask.shape
+        ball_y = int(input_playmask.ball_location.y)
+        downfield_crop = current_mask[0:ball_y, 0:width]
+        current_backfield_crop = current_mask[ball_y+1:current_height-1, 0:width-1]
+
+        current_backfield_height = current_height - ball_y
+        new_backfield_height = int(current_backfield_height * backfield_scaling_factor)
+
+        interpolation = constants.DOWNSIZE_INTERPOLATION if new_backfield_height < current_backfield_height else constants.UPSIZE_INTERPOLATION
+        new_backfield_crop = cv2.resize(
+            src=current_backfield_crop, 
+            dsize=(width, new_backfield_height),
+            interpolation=interpolation
+        )
+
+        new_height = ball_y + new_backfield_height
+        new_mask = np.zeros((new_height, width), np.uint8)
+        new_mask[0:ball_y, 0:width] = downfield_crop
+        new_mask[ball_y:new_height, 0:width] = new_backfield_crop
+
+        # Save and return mask
+        new_mask_local_path = input_playmask.mask_local_path
+        PlayMask.save_mask(mask=new_mask, filepath=new_mask_local_path)
+        return PlayMask(
+            ball_location=input_playmask.ball_location,
+            mask_local_path=new_mask_local_path,
+            mask=new_mask
+        )
+
 
     # This does not work for some reason
     @staticmethod

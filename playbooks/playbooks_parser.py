@@ -31,6 +31,7 @@ FORMATION_THRESHOLD = {
 MADDEN_MIN_PLAYER_SPACING = 32  # px, in original images
 FORMATION_CORE_CROP_HEIGHT = 1.5 * MADDEN_MIN_PLAYER_SPACING  # px behind LOS to look for adjacent players in core
 FORMATION_CORE_UPSCALE_FACTOR = 2.5
+FORMATION_BACKFIELD_UPSCALE_FACTOR = 2
 
 # For vizualizing skeltons in debug images.
 SKELETON_COLORS = [
@@ -96,14 +97,21 @@ def _parse_formation(
     parsed_formation.spacing_correction = spacing_correction
     debug_images += correction_debug_images
 
-    # Apply spacing correction.
+    # Apply horizontal spacing correction.
     respaced_formation_mask = PlayMask.apply_horizontal_spacing_correction(
         input_playmask=parsed_formation.mask,
         correction=spacing_correction
     )
     debug_images.append({'title': 'respaced formation_mask', 'img': respaced_formation_mask.mask})
 
-    parsed_formation.mask = respaced_formation_mask
+    # Apply backfield vertical scaling correction.
+    rescaled_backfield_formation_mask = PlayMask.apply_backfield_vertical_scaling(
+        input_playmask=respaced_formation_mask,
+        backfield_scaling_factor=1/FORMATION_BACKFIELD_UPSCALE_FACTOR
+    )
+    debug_images.append({'title': 'rescaled backfield formation_mask', 'img': rescaled_backfield_formation_mask.mask})
+
+    parsed_formation.mask = rescaled_backfield_formation_mask
     return (parsed_formation, debug_images)
 
 
@@ -136,7 +144,7 @@ def _get_formation_spacing_correction(formation: Formation, play_image: np.array
             next_player_xmin:next_player_xmax
         ]
 
-        debug_images.append({'title': f'left player crop: {steps_left}', 'img': next_player_crop})
+        # debug_images.append({'title': f'left player crop: {steps_left}', 'img': next_player_crop})
 
         next_player_pixels = image_utils.get_mask_white_pixels(next_player_crop)
         if len(next_player_pixels) > 0:
@@ -157,7 +165,7 @@ def _get_formation_spacing_correction(formation: Formation, play_image: np.array
             next_player_xmin:next_player_xmax
         ]
 
-        debug_images.append({'title': f'right player crop: {steps_right}', 'img': next_player_crop})
+        # debug_images.append({'title': f'right player crop: {steps_right}', 'img': next_player_crop})
 
         next_player_pixels = image_utils.get_mask_white_pixels(next_player_crop)
         if len(next_player_pixels) > 0:
@@ -241,15 +249,22 @@ def _parse_play_image(
             input_playmask=parsed_playmask,
             correction=parsed_formation.spacing_correction
         )
-        debug_images.append({'title': 'rescaped playmask', 'img': respaced_playmask.mask})
+        # debug_images.append({'title': 'respaced playmask', 'img': respaced_playmask.mask})
+
+        # Account for inconsistent backfield vertical scaling.
+        rescaled_backfield_playmask = PlayMask.apply_backfield_vertical_scaling(
+            input_playmask=respaced_playmask,
+            backfield_scaling_factor=1/FORMATION_BACKFIELD_UPSCALE_FACTOR
+        )
+        debug_images.append({'title': 'rescaled backfield playmask', 'img': rescaled_backfield_playmask.mask})
 
         # Downsample Playmask.
-        sampled_playmask = PlayMask.resample(respaced_playmask, constants.PLAYMASK_SCALE)
-        debug_images.append({'title': 'sampled playmask', 'img': sampled_playmask.mask})
+        sampled_playmask = PlayMask.resample(rescaled_backfield_playmask, constants.PLAYMASK_SCALE)
+        # debug_images.append({'title': 'sampled playmask', 'img': sampled_playmask.mask})
 
         # Standardize vertical cropping.
         cropped_playmask = PlayMask.crop_field_vertically(input_playmask=sampled_playmask)
-        debug_images.append({'title': 'cropped playmask', 'img': cropped_playmask.mask})
+        # debug_images.append({'title': 'cropped playmask', 'img': cropped_playmask.mask})
 
         # parsed_play.type = # need to determine play type
         parsed_play.playmask = cropped_playmask
