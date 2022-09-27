@@ -64,7 +64,7 @@ CLOSING_SIZE = 25
 CLOSING_KERNERL = np.ones((CLOSING_SIZE, CLOSING_SIZE), np.uint8)
 
 
-def _parse_formation(
+def parse_formation(
     input_formation: Formation,
     play_image: np.array,
     formation_mask_path: str,
@@ -218,7 +218,7 @@ def _parse_play_image(
 
         # Parse formation.
         formation_mask_path = path.join(constants.FORMATIONS_DIR, f'{play.formation.id}_{constants.PLAYMASK_FILENAME}')
-        parsed_formation, formation_debug_images = _parse_formation(
+        parsed_formation, formation_debug_images = parse_formation(
             input_formation=play.formation,
             play_image=img,
             formation_mask_path=formation_mask_path,
@@ -267,6 +267,7 @@ def _parse_play_image(
         # debug_images.append({'title': 'cropped playmask', 'img': cropped_playmask.mask})
 
         # parsed_play.type = # need to determine play type
+        parsed_play.formation = parsed_formation
         parsed_play.playmask = cropped_playmask
 
         glog.info(f'..finished parsing {play.title()} in {utils.elapsed_ms(parse_start)}ms: {json.dumps(parsed_play.summary())}')

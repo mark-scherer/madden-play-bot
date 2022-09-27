@@ -34,7 +34,7 @@ def main():
 
     # Find best match in playbook
     match_result = play_matcher.match_play(play=parsed_play, possible_matches=playbook.plays)
-    matched_plays = [(play_map[match.play_2_id], match.score) for match in match_result]
+    matched_plays = [(play_map[match.truth_play_id], match.score) for match in match_result]
     matched_plays = sorted(matched_plays, key=lambda match: match[1])
 
     # glog.info(f'Got matches for {parsed_play.title()}: {[f"{match[0].title()}: {match[1]}" for match in matched_plays[0:3]]}')

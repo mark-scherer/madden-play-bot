@@ -5,6 +5,7 @@ To be used on known play matches.
 
 import sys
 from os import path
+import copy
 sys.path.append(path.join(path.dirname(__file__), '..')) # upwards relative imports are hacky
 sys.path.append(path.join(path.dirname(__file__), '..', '..')) # upwards relative imports are hacky
 
@@ -47,6 +48,7 @@ def main():
     playbook = Playbook.read_from_json(PLAYBOOK_JSON)
     play_map = {play.id: play for play in playbook.plays}
     truth_play = play_map[PLAY_ID]
+    print(f'truth_play: {truth_play}')
     glog.info(f'Loaded {len(playbook.plays)} plays from {playbook.title()} - targeting {truth_play.title()}')
 
     play_image = cv2.imread(truth_play.image_local_path)
@@ -60,6 +62,12 @@ def main():
     # Compute match
     match_result, match_debug_images = play_matcher.match_play(play=parsed_play, possible_matches=[truth_play])
     debug_images += match_debug_images
+
+    # Compute match (reversed play)
+    reversed_play = copy.deepcopy(truth_play)
+    reversed_play.reverse()
+    reversed_match_result, reversed_match_debug_images = play_matcher.match_play(play=parsed_play, possible_matches=[reversed_play])
+    debug_images += reversed_match_debug_images
 
     vis_utils.display_images(debug_images)
 

@@ -163,6 +163,17 @@ def match_play(play: Play, possible_matches: List[Play]) -> Tuple[List[PlayMatch
             debug_images=match_debug_images
         ))
 
+        # Try reversed play
+        reversed_truth_play = copy.deepcopy(truth_play)
+        reversed_truth_play.reverse()
+        reversed_match_score, reversed_match_debug_images = _play_overlap(test_play=blurred_test_play, truth_play=reversed_truth_play)
+        play_match_results.append(PlayMatch(
+            test_play_id=play.id,
+            truth_play_id=reversed_truth_play.id,
+            score=reversed_match_score,
+            debug_images=reversed_match_debug_images
+        ))
+
     # Add match debug images in order
     sorted_match_results = sorted(play_match_results, key=lambda match_result: match_result.score, reverse=True)
     for i, match_result in enumerate(sorted_match_results):
@@ -177,4 +188,4 @@ def match_play(play: Play, possible_matches: List[Play]) -> Tuple[List[PlayMatch
     #     score=0
     # ) for other_play in possible_matches]
 
-    return (None, debug_images)
+    return (play_match_results, debug_images)

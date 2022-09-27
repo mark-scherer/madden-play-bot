@@ -5,6 +5,7 @@ from os import path
 from typing import List, Dict, Any, NamedTuple, Tuple, Optional
 from enum import Enum
 from dataclasses import dataclass, field
+import pathlib
 sys.path.append(path.join(path.dirname(__file__), '..')) # upwards relative imports are hacky
 
 import numpy as np
@@ -88,6 +89,8 @@ class PlayMask:
 
     @staticmethod
     def save_mask(mask: np.array, filepath: str) -> None:
+        dir = path.dirname(filepath)
+        pathlib.Path(dir).mkdir(parents=True, exist_ok=True)
         cv2.imwrite(filename=filepath, img=mask)
 
 
@@ -146,6 +149,31 @@ class PlayMask:
         )
         PlayMask.save_mask(mask=new_mask, filepath=new_mask_local_path)
 
+        return PlayMask(
+            ball_location=new_ball_location,
+            mask_local_path=new_mask_local_path,
+            mask=new_mask
+        )
+
+
+    @staticmethod
+    def reverse(input_playmask: 'PlayMask') -> 'PlayMask':
+        '''Reverses playmask and returns modified copy.'''
+
+        current_mask = input_playmask.mask
+        new_mask = cv2.flip(current_mask, 1)
+
+        _, width = current_mask.shape
+        current_ball_location = input_playmask.ball_location
+        new_ball_x = width - current_ball_location.x
+
+        new_ball_location = Point(
+            x=new_ball_x,
+            y=current_ball_location.y
+        )
+
+        new_mask_local_path = input_playmask.mask_local_path
+        PlayMask.save_mask(mask=new_mask, filepath=new_mask_local_path)
         return PlayMask(
             ball_location=new_ball_location,
             mask_local_path=new_mask_local_path,
@@ -355,6 +383,7 @@ class PlayMask:
         )
 
     
+    @staticmethod
     def apply_backfield_vertical_scaling(input_playmask: 'PlayMask', backfield_scaling_factor: float) -> 'PlayMask':
         '''Apply vertical scaling correction to just the backfield.'''
         
@@ -432,6 +461,10 @@ class Formation:
             'id': self.id,
         }
 
+    def is_parsed(self) -> bool:
+        '''Return if formation has been fully parsed.'''
+        return self.mask is not None
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             'formation_id': self.id,
@@ -451,6 +484,14 @@ class Formation:
             mask = PlayMask.parse(obj['formation_mask']) if obj['formation_mask'] else None,
             spacing_correction = obj['formation_correction']
         )
+
+    def reverse(self) -> None:
+        '''Note: cannot yet reverse spacing correction!'''
+        assert self.is_parsed(), 'cannot reverse formation unless formation_mask parsed.'
+
+        self.mask = PlayMask.reverse(self.mask)
+        self.name += ' (R)'
+        self.spacing_correction = None
 
 
 @dataclass
@@ -500,3 +541,9 @@ class Play:
             type = PlayType[type_str] if type_str else None,
             playmask = PlayMask.parse(obj['play_playmask']) if obj['play_playmask'] else None
         )
+
+    def reverse(self) -> None:
+        '''Note: does not reverse play image!'''
+        self.id = -1*self.id
+        self.formation.reverse()
+        self.playmask = PlayMask.reverse(self.playmask)
